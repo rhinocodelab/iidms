@@ -47,7 +47,8 @@
                         
                         <!-- Submit Button -->
                         <button type="submit" 
-                                class="w-full bg-blue-600 text-white py-3 px-4 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="w-full bg-blue-600 text-white py-3 px-4 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
                             <i class="fas fa-magic mr-2"></i>
                             Process with AI Classification
                         </button>
@@ -138,7 +139,8 @@
                         
                         <!-- Submit Button -->
                         <button type="submit" 
-                                class="w-full bg-green-600 text-white py-3 px-4 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="w-full bg-green-600 text-white py-3 px-4 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
                             <i class="fas fa-upload mr-2"></i>
                             Upload to DataCap
                         </button>
@@ -196,6 +198,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     classificationFiles.addEventListener('change', function(e) {
         const files = Array.from(e.target.files);
+        const submitBtn = document.querySelector('#classificationForm button[type="submit"]');
+        
         if (files.length > 0) {
             fileList.innerHTML = '';
             files.forEach(file => {
@@ -205,8 +209,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileList.appendChild(li);
             });
             selectedFiles.classList.remove('hidden');
+            submitBtn.disabled = false;
         } else {
             selectedFiles.classList.add('hidden');
+            submitBtn.disabled = true;
+        }
+    });
+    
+    // Drag and drop functionality for AI Classification
+    const dropZone = document.querySelector('#classificationForm .border-dashed');
+    
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+    });
+    
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        
+        const files = Array.from(e.dataTransfer.files);
+        const submitBtn = document.querySelector('#classificationForm button[type="submit"]');
+        
+        if (files.length > 0) {
+            // Filter files by accepted types
+            const acceptedTypes = ['.pdf', '.docx', '.odt', '.csv', '.xlsx', '.xls', '.png', '.jpg', '.jpeg', '.zip', '.7z', '.tar', '.gz', '.bz2', '.xz', '.rar', '.txt', '.json', '.yaml', '.yml'];
+            const validFiles = files.filter(file => {
+                const extension = '.' + file.name.split('.').pop().toLowerCase();
+                return acceptedTypes.includes(extension);
+            });
+            
+            if (validFiles.length > 0) {
+                // Update the file input
+                const dt = new DataTransfer();
+                validFiles.forEach(file => dt.items.add(file));
+                classificationFiles.files = dt.files;
+                
+                // Update the display
+                fileList.innerHTML = '';
+                validFiles.forEach(file => {
+                    const li = document.createElement('li');
+                    li.className = 'text-sm text-gray-600 bg-gray-50 p-2 rounded';
+                    li.innerHTML = `<i class="fas fa-file mr-2"></i>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    fileList.appendChild(li);
+                });
+                selectedFiles.classList.remove('hidden');
+                submitBtn.disabled = false;
+            }
         }
     });
     
@@ -217,11 +271,60 @@ document.addEventListener('DOMContentLoaded', function() {
     
     businessFile.addEventListener('change', function(e) {
         const file = e.target.files[0];
+        const submitBtn = document.querySelector('#businessForm button[type="submit"]');
+        
         if (file) {
             businessFileName.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
             selectedBusinessFile.classList.remove('hidden');
+            submitBtn.disabled = false;
         } else {
             selectedBusinessFile.classList.add('hidden');
+            submitBtn.disabled = true;
+        }
+    });
+    
+    // Drag and drop functionality for Business Documents
+    const businessDropZone = document.querySelector('#businessForm .border-dashed');
+    
+    businessDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        businessDropZone.classList.add('drag-over');
+    });
+    
+    businessDropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        businessDropZone.classList.remove('drag-over');
+    });
+    
+    businessDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        businessDropZone.classList.remove('drag-over');
+        
+        const files = Array.from(e.dataTransfer.files);
+        const submitBtn = document.querySelector('#businessForm button[type="submit"]');
+        
+        if (files.length > 0) {
+            // Filter files by accepted types for business documents
+            const acceptedTypes = ['.pdf', '.docx', '.odt', '.csv', '.xlsx', '.xls', '.png', '.jpg', '.jpeg'];
+            const validFiles = files.filter(file => {
+                const extension = '.' + file.name.split('.').pop().toLowerCase();
+                return acceptedTypes.includes(extension);
+            });
+            
+            if (validFiles.length > 0) {
+                // Take only the first valid file for business documents (single file upload)
+                const file = validFiles[0];
+                
+                // Update the file input
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                businessFile.files = dt.files;
+                
+                // Update the display
+                businessFileName.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                selectedBusinessFile.classList.remove('hidden');
+                submitBtn.disabled = false;
+            }
         }
     });
     
