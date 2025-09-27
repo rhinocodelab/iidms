@@ -10,46 +10,12 @@
 
     <!-- AI Document Classification Section -->
     <div id="ai-classification" class="upload-section">
-        <div class="max-w-2xl mx-auto">
-            <!-- AI Classification Info Box -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-semibold text-blue-900 mb-3">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    AI Document Classification Process
-                </h3>
-                <div class="space-y-3">
-                    <div class="flex items-start">
-                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">1</div>
-                        <div>
-                            <p class="font-medium text-blue-900">Upload Multiple Files</p>
-                            <p class="text-sm text-blue-800">Select multiple documents of any supported type for batch processing</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
-                        <div>
-                            <p class="font-medium text-blue-900">AI Analysis</p>
-                            <p class="text-sm text-blue-800">WatsonX AI analyzes content and classifies document type automatically</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
-                        <div>
-                            <p class="font-medium text-blue-900">Criticality Assignment</p>
-                            <p class="text-sm text-blue-800">System assigns security levels based on document type and content</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">4</div>
-                        <div>
-                            <p class="font-medium text-blue-900">FileNet Storage</p>
-                            <p class="text-sm text-blue-800">Files uploaded to IBM FileNet with proper organization and metadata</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="max-w-6xl mx-auto">
+            <!-- AI Classification Layout: Card and Info Box Side by Side -->
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Upload Card -->
+                <div class="lg:w-2/3">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center mb-4">
                     <div class="bg-blue-100 p-3 rounded-full mr-4">
                         <i class="fas fa-brain text-xl text-blue-600"></i>
@@ -87,58 +53,66 @@
                         </button>
                     </div>
                 </form>
+                    </div>
+                </div>
+                
+                <!-- AI Classification Info Box -->
+                <div class="lg:w-96 flex-shrink-0">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 h-fit">
+                        <h3 class="text-lg font-semibold text-blue-900 mb-3">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            AI Document Classification Process
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex items-start">
+                                <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">1</div>
+                                <div>
+                                    <p class="font-medium text-blue-900">Upload Multiple Files</p>
+                                    <p class="text-sm text-blue-800">Select multiple documents of any supported type for batch processing</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
+                                <div>
+                                    <p class="font-medium text-blue-900">AI Analysis</p>
+                                    <p class="text-sm text-blue-800">WatsonX AI analyzes content and classifies document type automatically</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
+                                <div>
+                                    <p class="font-medium text-blue-900">Criticality Assignment</p>
+                                    <p class="text-sm text-blue-800">System assigns security levels based on document type and content</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">4</div>
+                                <div>
+                                    <p class="font-medium text-blue-900">FileNet Storage</p>
+                                    <p class="text-sm text-blue-800">Files uploaded to IBM FileNet with proper organization and metadata</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Business Document Upload Section -->
     <div id="business-upload" class="upload-section">
-        <div class="max-w-2xl mx-auto">
-            <!-- Business Upload Info Box -->
-            <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-semibold text-green-900 mb-3">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    Business Document Upload Process
-                </h3>
-                <div class="space-y-3">
-                    <div class="flex items-start">
-                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">1</div>
-                        <div>
-                            <p class="font-medium text-green-900">Select Confidentiality Level</p>
-                            <p class="text-sm text-green-800">Choose appropriate security classification for your document</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
-                        <div>
-                            <p class="font-medium text-green-900">Upload Single Document</p>
-                            <p class="text-sm text-green-800">Select one business document for immediate processing</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
-                        <div>
-                            <p class="font-medium text-green-900">Direct DataCap Upload</p>
-                            <p class="text-sm text-green-800">Document uploaded directly to IBM DataCap system without AI processing</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">4</div>
-                        <div>
-                            <p class="font-medium text-green-900">Processing Confirmation</p>
-                            <p class="text-sm text-green-800">Receive immediate confirmation and tracking ID for your upload</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="max-w-6xl mx-auto">
+            <!-- Business Upload Layout: Card and Info Box Side by Side -->
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Upload Card -->
+                <div class="lg:w-2/3">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center mb-4">
                     <div class="bg-green-100 p-3 rounded-full mr-4">
                         <i class="fas fa-briefcase text-xl text-green-600"></i>
                     </div>
                     <div>
-                        <h2 class="text-xl font-semibold text-gray-900">Business Document Upload</h2>
+                        <h2 class="text-xl font-semibold text-gray-900">Business Documents</h2>
                         <p class="text-sm text-gray-600">Direct upload to IBM DataCap system</p>
                     </div>
                 </div>
@@ -185,6 +159,48 @@
                         </button>
                     </div>
                 </form>
+                    </div>
+                </div>
+                
+                <!-- Business Upload Info Box -->
+                <div class="lg:w-96 flex-shrink-0">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6 h-fit">
+                        <h3 class="text-lg font-semibold text-green-900 mb-3">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Business Document Upload Process
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex items-start">
+                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">1</div>
+                                <div>
+                                    <p class="font-medium text-green-900">Select Confidentiality Level</p>
+                                    <p class="text-sm text-green-800">Choose appropriate security classification for your document</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
+                                <div>
+                                    <p class="font-medium text-green-900">Upload Single Document</p>
+                                    <p class="text-sm text-green-800">Select one business document for immediate processing</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
+                                <div>
+                                    <p class="font-medium text-green-900">Direct DataCap Upload</p>
+                                    <p class="text-sm text-green-800">Document uploaded directly to IBM DataCap system without AI processing</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">4</div>
+                                <div>
+                                    <p class="font-medium text-green-900">Processing Confirmation</p>
+                                    <p class="text-sm text-green-800">Receive immediate confirmation and tracking ID for your upload</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -257,12 +273,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function showRelevantSection() {
         const aiSection = document.getElementById('ai-classification');
         const businessSection = document.getElementById('business-upload');
-        const instructions = document.querySelector('.bg-blue-50');
         
         // Hide all sections initially
         aiSection.style.display = 'none';
         businessSection.style.display = 'none';
-        instructions.style.display = 'none';
         
         // Show section based on URL hash or default to both
         const hash = window.location.hash;
@@ -275,7 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Default: show both sections (for direct navigation to /upload)
             aiSection.style.display = 'block';
             businessSection.style.display = 'block';
-            instructions.style.display = 'block';
         }
     }
     
