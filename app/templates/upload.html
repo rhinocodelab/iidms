@@ -119,21 +119,6 @@
                 
                 <form action="/business_upload" method="post" enctype="multipart/form-data" id="businessForm">
                     <div class="space-y-4">
-                        <!-- Confidentiality Level -->
-                        <div>
-                            <label for="confidentiality" class="block text-sm font-medium text-gray-700 mb-2">
-                                Confidentiality Level
-                            </label>
-                            <select name="confidentiality" id="confidentiality" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="Public">Public</option>
-                                <option value="Confidential">Confidential</option>
-                                <option value="Restricted">Restricted</option>
-                                <option value="Top Secret">Top Secret</option>
-                                <option value="Classified">Classified</option>
-                            </select>
-                        </div>
-                        
                         <!-- File Input -->
                         <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-400 transition-colors">
                             <input type="file" name="file" accept=".pdf,.docx,.odt,.csv,.xlsx,.xls,.png,.jpg,.jpeg" 
@@ -173,26 +158,19 @@
                             <div class="flex items-start">
                                 <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">1</div>
                                 <div>
-                                    <p class="font-medium text-green-900">Select Confidentiality Level</p>
-                                    <p class="text-sm text-green-800">Choose appropriate security classification for your document</p>
-                                </div>
-                            </div>
-                            <div class="flex items-start">
-                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
-                                <div>
                                     <p class="font-medium text-green-900">Upload Single Document</p>
                                     <p class="text-sm text-green-800">Select one business document for immediate processing</p>
                                 </div>
                             </div>
                             <div class="flex items-start">
-                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
+                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
                                 <div>
                                     <p class="font-medium text-green-900">Direct DataCap Upload</p>
                                     <p class="text-sm text-green-800">Document uploaded directly to IBM DataCap system without AI processing</p>
                                 </div>
                             </div>
                             <div class="flex items-start">
-                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">4</div>
+                                <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
                                 <div>
                                     <p class="font-medium text-green-900">Processing Confirmation</p>
                                     <p class="text-sm text-green-800">Receive immediate confirmation and tracking ID for your upload</p>

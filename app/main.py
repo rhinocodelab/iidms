@@ -595,8 +595,7 @@ def extract_queue_id(xml_str: str) -> str:
         raise ValueError(f"Failed to parse XML: {e}")
 
 @app.post("/api/business/upload")
-async def upload_business_document(file: UploadFile = File(...),
-                                   confidentiality: str = Form("Public")):
+async def upload_business_document(file: UploadFile = File(...)):
     session = requests.Session()
     # 1. Logon
     logon_payload = f"""
@@ -687,7 +686,7 @@ async def upload_files_frontend(request: Request, files: List[UploadFile] = File
         })
 
 @app.post("/business_upload", response_class=HTMLResponse)
-async def business_upload_frontend(request: Request, file: UploadFile = File(...), confidentiality: str = Form("Public")):
+async def business_upload_frontend(request: Request, file: UploadFile = File(...)):
     """Handle business document uploads from the frontend"""
     try:
         # Call the existing business upload logic
@@ -752,8 +751,7 @@ async def business_upload_frontend(request: Request, file: UploadFile = File(...
             "request": request,
             "message": "Business document processed successfully",
             "queueId": queueId,
-            "filename": file.filename,
-            "confidentiality": confidentiality
+            "filename": file.filename
         })
         
     except Exception as e:

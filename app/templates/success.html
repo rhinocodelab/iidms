@@ -22,6 +22,7 @@
                     <span class="text-sm font-medium text-gray-500">Filename:</span>
                     <span class="text-sm text-gray-900">{{ filename }}</span>
                 </div>
+                {% if confidentiality %}
                 <div class="flex justify-between items-center">
                     <span class="text-sm font-medium text-gray-500">Confidentiality:</span>
                     <span class="text-sm text-gray-900">
@@ -52,6 +53,7 @@
                         {% endif %}
                     </span>
                 </div>
+                {% endif %}
                 <div class="flex justify-between items-center">
                     <span class="text-sm font-medium text-gray-500">Queue ID:</span>
                     <span class="text-sm text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded">{{ queueId }}</span>
