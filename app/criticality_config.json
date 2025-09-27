@@ -1,0 +1,13 @@
+{
+    "Aadhaar Card":"Public",
+    "Non-Disclosure Agreement (NDA)": "Confidential",
+    "NDA": "Confidential",
+    "Bank Transaction Data": "Restricted",
+    "ATM Transaction Logs": "Restricted",
+    "Infrastructure as Code": "Restricted",
+    "Authentication Logs": "Classified",
+    "Batch Scripts": "Public",
+    "Employee Handbook": "Confidential",
+    "Business Proposal": "Top Secret",
+    "Invoice": "Restricted"
+}

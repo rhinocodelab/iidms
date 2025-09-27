@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - IDMS{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Intelligent Document Management System{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Welcome Section -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Welcome to IDMS</h1>
+                <p class="text-gray-600">AI-powered document classification and FileNet integration system</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="/upload" class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors flex items-center">
+                    <i class="fas fa-upload mr-2"></i>
+                    Upload Documents
+                </a>
+                <button class="bg-gray-100 text-gray-700 px-4 py-2 hover:bg-gray-200 transition-colors flex items-center">
+                    <i class="fas fa-cog mr-2"></i>
+                    Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <i class="fas fa-file-alt text-xl text-blue-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Documents Processed</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="dashboard-total-docs">--</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="bg-green-100 p-3 rounded-full">
+                    <i class="fas fa-check-circle text-xl text-green-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Success Rate</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="dashboard-success-rate">--</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <i class="fas fa-folder text-xl text-purple-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">FileNet Uploads</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="dashboard-filenet-uploads">--</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="bg-orange-100 p-3 rounded-full">
+                    <i class="fas fa-clock text-xl text-orange-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Avg. Process Time</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="dashboard-avg-time">--</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Analytics Preview -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-900">Quick Analytics</h3>
+            <a href="/analytics" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                View Full Analytics <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Document Types Preview -->
+            <div class="text-center">
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Document Types</h4>
+                <div class="relative h-32">
+                    <canvas id="previewDocTypesChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Criticality Levels Preview -->
+            <div class="text-center">
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Criticality Levels</h4>
+                <div class="relative h-32">
+                    <canvas id="previewCriticalityChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Recent Activity</h4>
+                <div class="space-y-2" id="recent-activity-preview">
+                    <div class="text-center text-gray-500 py-4">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">Recent Activity</h2>
+            <a href="/upload" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All</a>
+        </div>
+        <div class="space-y-4" id="recent-activity-list">
+            <div class="text-center text-gray-500 py-8">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Loading recent activity...
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Preview chart instances
+let previewDocTypesChart, previewCriticalityChart;
+
+// Load dashboard metrics from database
+function loadDashboardMetrics() {
+    fetch('/api/dashboard-metrics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error loading dashboard metrics:', data.error);
+                return;
+            }
+            
+            document.getElementById('dashboard-total-docs').textContent = data.total_documents || 0;
+            document.getElementById('dashboard-success-rate').textContent = (data.success_rate || 0) + '%';
+            document.getElementById('dashboard-filenet-uploads').textContent = data.filenet_uploads || 0;
+            document.getElementById('dashboard-avg-time').textContent = (data.avg_processing_time || 0) + 's';
+        })
+        .catch(error => {
+            console.error('Error loading dashboard metrics:', error);
+        });
+}
+
+// Load analytics data for preview charts
+function loadAnalyticsPreview() {
+    fetch('/api/analytics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error loading analytics:', data.error);
+                return;
+            }
+            
+            updatePreviewCharts(data);
+            updateRecentActivityPreview(data);
+        })
+        .catch(error => {
+            console.error('Error loading analytics data:', error);
+        });
+}
+
+// Update preview charts
+function updatePreviewCharts(data) {
+    // Document Types Preview Chart
+    const docTypesCtx = document.getElementById('previewDocTypesChart').getContext('2d');
+    if (previewDocTypesChart) {
+        previewDocTypesChart.destroy();
+    }
+    
+    const docTypesLabels = data.document_types?.slice(0, 3).map(item => item.name) || ['PDF', 'Word', 'Excel'];
+    const docTypesValues = data.document_types?.slice(0, 3).map(item => item.count) || [10, 8, 5];
+    
+    previewDocTypesChart = new Chart(docTypesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: docTypesLabels,
+            datasets: [{
+                data: docTypesValues,
+                backgroundColor: ['#3B82F6', '#EF4444', '#10B981'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Criticality Levels Preview Chart
+    const criticalityCtx = document.getElementById('previewCriticalityChart').getContext('2d');
+    if (previewCriticalityChart) {
+        previewCriticalityChart.destroy();
+    }
+    
+    const criticalityLabels = data.criticality_levels?.slice(0, 4).map(item => item.name) || ['Public', 'Confidential', 'Restricted', 'Classified'];
+    const criticalityValues = data.criticality_levels?.slice(0, 4).map(item => item.count) || [15, 10, 5, 2];
+    
+    previewCriticalityChart = new Chart(criticalityCtx, {
+        type: 'bar',
+        data: {
+            labels: criticalityLabels,
+            datasets: [{
+                data: criticalityValues,
+                backgroundColor: ['#10B981', '#F59E0B', '#EF4444', '#6B7280'],
+                borderColor: ['#10B981', '#F59E0B', '#EF4444', '#6B7280'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    display: false
+                },
+                x: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+// Update recent activity preview
+function updateRecentActivityPreview(data) {
+    const container = document.getElementById('recent-activity-preview');
+    if (!container) return;
+    
+    // For now, show a simple summary
+    container.innerHTML = `
+        <div class="text-sm text-gray-600 space-y-1">
+            <div class="flex justify-between">
+                <span>Processed Today:</span>
+                <span class="font-medium">${data.processed_today || 0}</span>
+            </div>
+            <div class="flex justify-between">
+                <span>Success Rate:</span>
+                <span class="font-medium text-green-600">${(100 - (data.error_rate || 0)).toFixed(1)}%</span>
+            </div>
+            <div class="flex justify-between">
+                <span>Avg Time:</span>
+                <span class="font-medium">${data.avg_processing_time || 0}s</span>
+            </div>
+        </div>
+    `;
+}
+
+// Load recent documents and update activity list
+function loadRecentDocuments() {
+    fetch('/api/recent-documents?limit=5')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error loading recent documents:', data.error);
+                updateRecentActivityList([]);
+                return;
+            }
+            
+            updateRecentActivityList(data);
+        })
+        .catch(error => {
+            console.error('Error loading recent documents:', error);
+            updateRecentActivityList([]);
+        });
+}
+
+// Update recent activity list with real data
+function updateRecentActivityList(documents) {
+    const container = document.getElementById('recent-activity-list');
+    if (!container) return;
+    
+    if (documents.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+                <i class="fas fa-inbox mr-2"></i>
+                No recent activity
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = documents.map(doc => {
+        // Get file icon based on file type
+        const fileIcon = getFileIcon(doc.file_type);
+        const iconColor = getFileIconColor(doc.file_type);
+        
+        // Format the activity description
+        const description = doc.processing_timestamp 
+            ? `Classified as ${doc.document_type} - ${doc.criticality_level} level`
+            : `Uploaded - Processing pending`;
+        
+        // Calculate time ago
+        const timeAgo = getTimeAgo(doc.created_at);
+        
+        return `
+            <div class="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                <div class="${iconColor} p-2 rounded-full">
+                    <i class="${fileIcon}"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="font-medium text-gray-900">${doc.filename}</p>
+                    <p class="text-sm text-gray-600">${description}</p>
+                </div>
+                <span class="text-xs text-gray-500">${timeAgo}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// Get appropriate file icon based on file type
+function getFileIcon(fileType) {
+    const iconMap = {
+        '.pdf': 'fas fa-file-pdf',
+        '.docx': 'fas fa-file-word',
+        '.doc': 'fas fa-file-word',
+        '.xlsx': 'fas fa-file-excel',
+        '.xls': 'fas fa-file-excel',
+        '.csv': 'fas fa-file-csv',
+        '.png': 'fas fa-file-image',
+        '.jpg': 'fas fa-file-image',
+        '.jpeg': 'fas fa-file-image',
+        '.zip': 'fas fa-file-archive',
+        '.7z': 'fas fa-file-archive',
+        '.rar': 'fas fa-file-archive',
+        '.json': 'fas fa-file-code',
+        '.yaml': 'fas fa-file-code',
+        '.yml': 'fas fa-file-code'
+    };
+    
+    return iconMap[fileType?.toLowerCase()] || 'fas fa-file';
+}
+
+// Get icon color class based on file type
+function getFileIconColor(fileType) {
+    const colorMap = {
+        '.pdf': 'bg-red-100 text-red-600',
+        '.docx': 'bg-blue-100 text-blue-600',
+        '.doc': 'bg-blue-100 text-blue-600',
+        '.xlsx': 'bg-green-100 text-green-600',
+        '.xls': 'bg-green-100 text-green-600',
+        '.csv': 'bg-yellow-100 text-yellow-600',
+        '.png': 'bg-purple-100 text-purple-600',
+        '.jpg': 'bg-purple-100 text-purple-600',
+        '.jpeg': 'bg-purple-100 text-purple-600',
+        '.zip': 'bg-orange-100 text-orange-600',
+        '.7z': 'bg-orange-100 text-orange-600',
+        '.rar': 'bg-orange-100 text-orange-600',
+        '.json': 'bg-gray-100 text-gray-600',
+        '.yaml': 'bg-gray-100 text-gray-600',
+        '.yml': 'bg-gray-100 text-gray-600'
+    };
+    
+    return colorMap[fileType?.toLowerCase()] || 'bg-gray-100 text-gray-600';
+}
+
+// Calculate time ago from timestamp
+function getTimeAgo(timestamp) {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInSeconds = Math.floor((now - time) / 1000);
+    
+    if (diffInSeconds < 60) {
+        return `${diffInSeconds} seconds ago`;
+    } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600);
+        return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else {
+        const days = Math.floor(diffInSeconds / 86400);
+        return `${days} day${days > 1 ? 's' : ''} ago`;
+    }
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardMetrics();
+    loadAnalyticsPreview();
+    loadRecentDocuments();
+    
+    // Refresh metrics every 30 seconds
+    setInterval(() => {
+        loadDashboardMetrics();
+        loadAnalyticsPreview();
+    }, 30000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Processing Results - IDMS{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Processing Results</h1>
+                <p class="text-gray-600">{{ message }}</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="/upload" class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>Upload More
+                </a>
+                <a href="/" class="bg-gray-600 text-white px-4 py-2 hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-home mr-2"></i>Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-blue-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-blue-600">{{ results|length }}</div>
+                <div class="text-sm text-blue-800">Files Processed</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-green-600">
+                    {{ results.values() | selectattr('filenet_upload', 'equalto', 'Success') | list | length }}
+                </div>
+                <div class="text-sm text-green-800">Successful Uploads</div>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-yellow-600">
+                    {{ results.values() | selectattr('criticality', 'equalto', 'Confidential') | list | length }}
+                </div>
+                <div class="text-sm text-yellow-800">Confidential</div>
+            </div>
+            <div class="bg-red-50 p-4 rounded-lg text-center">
+                <div class="text-2xl font-bold text-red-600">
+                    {{ results.values() | selectattr('criticality', 'equalto', 'Top Secret') | list | length }}
+                </div>
+                <div class="text-sm text-red-800">Top Secret</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Results Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Detailed Results</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-file mr-1"></i>File Name
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-tags mr-1"></i>Document Type
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-shield-alt mr-1"></i>Criticality
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-info-circle mr-1"></i>Summary
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-database mr-1"></i>FileNet Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-cog mr-1"></i>Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for filename, result in results.items() %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    {% if filename.endswith('.pdf') %}
+                                        <i class="fas fa-file-pdf text-2xl text-red-500"></i>
+                                    {% elif filename.endswith(('.docx', '.doc')) %}
+                                        <i class="fas fa-file-word text-2xl text-blue-500"></i>
+                                    {% elif filename.endswith(('.xlsx', '.xls', '.csv')) %}
+                                        <i class="fas fa-file-excel text-2xl text-green-500"></i>
+                                    {% elif filename.endswith(('.png', '.jpg', '.jpeg')) %}
+                                        <i class="fas fa-file-image text-2xl text-purple-500"></i>
+                                    {% elif filename.endswith(('.zip', '.7z', '.tar', '.gz')) %}
+                                        <i class="fas fa-file-archive text-2xl text-gray-500"></i>
+                                    {% else %}
+                                        <i class="fas fa-file text-2xl text-gray-500"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ filename }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ result.document_type }}</div>
+                            {% if result.Tags %}
+                            <div class="text-xs text-gray-500 mt-1">
+                                {% for tag in result.Tags.split(',') %}
+                                    <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs mr-1">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if result.criticality == 'Public' %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    <i class="fas fa-globe mr-1"></i>{{ result.criticality }}
+                                </span>
+                            {% elif result.criticality == 'Confidential' %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-lock mr-1"></i>{{ result.criticality }}
+                                </span>
+                            {% elif result.criticality == 'Restricted' %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                                    <i class="fas fa-shield-alt mr-1"></i>{{ result.criticality }}
+                                </span>
+                            {% elif result.criticality == 'Top Secret' %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                    <i class="fas fa-user-secret mr-1"></i>{{ result.criticality }}
+                                </span>
+                            {% elif result.criticality == 'Classified' %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                                    <i class="fas fa-key mr-1"></i>{{ result.criticality }}
+                                </span>
+                            {% else %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    <i class="fas fa-question mr-1"></i>{{ result.criticality }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900 max-w-xs">
+                                {{ result.summary }}
+                            </div>
+                            {% if result.reasoning %}
+                            <button onclick="toggleReasoning('{{ filename }}')" 
+                                    class="text-xs text-blue-600 hover:text-blue-800 mt-1">
+                                <i class="fas fa-info-circle mr-1"></i>Show reasoning
+                            </button>
+                            <div id="reasoning-{{ filename }}" class="hidden mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                                {{ result.reasoning }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if result.filenet_upload == 'Success' %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    <i class="fas fa-check mr-1"></i>Success
+                                </span>
+                            {% else %}
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                    <i class="fas fa-times mr-1"></i>Failed
+                                </span>
+                                <div class="text-xs text-red-600 mt-1 max-w-xs">{{ result.filenet_upload }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button onclick="copyToClipboard('{{ filename }}')" 
+                                    class="text-blue-600 hover:text-blue-800 mr-3">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleReasoning(filename) {
+    const element = document.getElementById('reasoning-' + filename);
+    if (element.classList.contains('hidden')) {
+        element.classList.remove('hidden');
+    } else {
+        element.classList.add('hidden');
+    }
+}
+
+function copyToClipboard(filename) {
+    // Copy filename to clipboard
+    navigator.clipboard.writeText(filename).then(function() {
+        // Show success message
+        const button = event.target.closest('button');
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check text-green-600"></i>';
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+        }, 2000);
+    });
+}
+
+// Add some animations
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach((row, index) => {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            row.style.transition = 'all 0.3s ease';
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

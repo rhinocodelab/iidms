@@ -1,0 +1,35 @@
+---
+- name: Configure Web Servers
+  hosts: webservers
+  become: yes
+  vars:
+    nginx_version: "1.23"
+    worker_processes: 4
+    server_names:
+      - "example.com"
+      - "www.example.com"
+
+  tasks:
+    - name: Install Nginx
+      apt:
+        name: nginx={{ nginx_version}}*
+        state: present
+        update_cache: yes
+
+    - name: Configure Nginx
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+      notify: Restart Nginx
+
+    - name: Ensure Nginx is running
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted

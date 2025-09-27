@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Documents - IDMS{% endblock %}
+
+{% block page_title %}Document Upload{% endblock %}
+{% block page_subtitle %}AI-powered classification and FileNet storage{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- AI Document Classification Section -->
+    <div id="ai-classification" class="upload-section">
+        <div class="max-w-2xl mx-auto">
+            <!-- AI Classification Info Box -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-semibold text-blue-900 mb-3">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    AI Document Classification Process
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex items-start">
+                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">1</div>
+                        <div>
+                            <p class="font-medium text-blue-900">Upload Multiple Files</p>
+                            <p class="text-sm text-blue-800">Select multiple documents of any supported type for batch processing</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
+                        <div>
+                            <p class="font-medium text-blue-900">AI Analysis</p>
+                            <p class="text-sm text-blue-800">WatsonX AI analyzes content and classifies document type automatically</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
+                        <div>
+                            <p class="font-medium text-blue-900">Criticality Assignment</p>
+                            <p class="text-sm text-blue-800">System assigns security levels based on document type and content</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-blue-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">4</div>
+                        <div>
+                            <p class="font-medium text-blue-900">FileNet Storage</p>
+                            <p class="text-sm text-blue-800">Files uploaded to IBM FileNet with proper organization and metadata</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-100 p-3 rounded-full mr-4">
+                        <i class="fas fa-brain text-xl text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">AI Document Classification</h2>
+                        <p class="text-sm text-gray-600">Multiple files for automatic classification</p>
+                    </div>
+                </div>
+                
+                <form action="/upload_files" method="post" enctype="multipart/form-data" id="classificationForm">
+                    <div class="space-y-4">
+                        <!-- File Input -->
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                            <input type="file" name="files" multiple accept=".pdf,.docx,.odt,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.zip,.7z,.tar,.gz,.bz2,.xz,.rar,.txt,.json,.yaml,.yml" 
+                                   id="classificationFiles" class="hidden" required>
+                            <label for="classificationFiles" class="cursor-pointer">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                <p class="text-lg font-medium text-gray-700 mb-2">Click to select files or drag & drop</p>
+                                <p class="text-sm text-gray-500">Supports: PDF, DOCX, Excel, CSV, Images, Archives, and more</p>
+                            </label>
+                        </div>
+                        
+                        <!-- Selected Files Display -->
+                        <div id="selectedFiles" class="hidden">
+                            <h3 class="font-medium text-gray-900 mb-2">Selected Files:</h3>
+                            <ul id="fileList" class="space-y-1"></ul>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <button type="submit" 
+                                class="w-full bg-blue-600 text-white py-3 px-4 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-magic mr-2"></i>
+                            Process with AI Classification
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business Document Upload Section -->
+    <div id="business-upload" class="upload-section">
+        <div class="max-w-2xl mx-auto">
+            <!-- Business Upload Info Box -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-semibold text-green-900 mb-3">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Business Document Upload Process
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex items-start">
+                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">1</div>
+                        <div>
+                            <p class="font-medium text-green-900">Select Confidentiality Level</p>
+                            <p class="text-sm text-green-800">Choose appropriate security classification for your document</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">2</div>
+                        <div>
+                            <p class="font-medium text-green-900">Upload Single Document</p>
+                            <p class="text-sm text-green-800">Select one business document for immediate processing</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">3</div>
+                        <div>
+                            <p class="font-medium text-green-900">Direct DataCap Upload</p>
+                            <p class="text-sm text-green-800">Document uploaded directly to IBM DataCap system without AI processing</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-green-600 text-white text-xs font-bold px-2 py-1 mr-3 mt-0.5">4</div>
+                        <div>
+                            <p class="font-medium text-green-900">Processing Confirmation</p>
+                            <p class="text-sm text-green-800">Receive immediate confirmation and tracking ID for your upload</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-green-100 p-3 rounded-full mr-4">
+                        <i class="fas fa-briefcase text-xl text-green-600"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Business Document Upload</h2>
+                        <p class="text-sm text-gray-600">Direct upload to IBM DataCap system</p>
+                    </div>
+                </div>
+                
+                <form action="/business_upload" method="post" enctype="multipart/form-data" id="businessForm">
+                    <div class="space-y-4">
+                        <!-- Confidentiality Level -->
+                        <div>
+                            <label for="confidentiality" class="block text-sm font-medium text-gray-700 mb-2">
+                                Confidentiality Level
+                            </label>
+                            <select name="confidentiality" id="confidentiality" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="Public">Public</option>
+                                <option value="Confidential">Confidential</option>
+                                <option value="Restricted">Restricted</option>
+                                <option value="Top Secret">Top Secret</option>
+                                <option value="Classified">Classified</option>
+                            </select>
+                        </div>
+                        
+                        <!-- File Input -->
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-400 transition-colors">
+                            <input type="file" name="file" accept=".pdf,.docx,.odt,.csv,.xlsx,.xls,.png,.jpg,.jpeg" 
+                                   id="businessFile" class="hidden" required>
+                            <label for="businessFile" class="cursor-pointer">
+                                <i class="fas fa-file-upload text-4xl text-gray-400 mb-4"></i>
+                                <p class="text-lg font-medium text-gray-700 mb-2">Select business document</p>
+                                <p class="text-sm text-gray-500">Single file upload to DataCap</p>
+                            </label>
+                        </div>
+                        
+                        <!-- Selected File Display -->
+                        <div id="selectedBusinessFile" class="hidden">
+                            <h3 class="font-medium text-gray-900 mb-2">Selected File:</h3>
+                            <p id="businessFileName" class="text-sm text-gray-600"></p>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <button type="submit" 
+                                class="w-full bg-green-600 text-white py-3 px-4 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-upload mr-2"></i>
+                            Upload to DataCap
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Classification form file handling
+    const classificationFiles = document.getElementById('classificationFiles');
+    const selectedFiles = document.getElementById('selectedFiles');
+    const fileList = document.getElementById('fileList');
+    
+    classificationFiles.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            fileList.innerHTML = '';
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'text-sm text-gray-600 bg-gray-50 p-2 rounded';
+                li.innerHTML = `<i class="fas fa-file mr-2"></i>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                fileList.appendChild(li);
+            });
+            selectedFiles.classList.remove('hidden');
+        } else {
+            selectedFiles.classList.add('hidden');
+        }
+    });
+    
+    // Business form file handling
+    const businessFile = document.getElementById('businessFile');
+    const selectedBusinessFile = document.getElementById('selectedBusinessFile');
+    const businessFileName = document.getElementById('businessFileName');
+    
+    businessFile.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            businessFileName.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            selectedBusinessFile.classList.remove('hidden');
+        } else {
+            selectedBusinessFile.classList.add('hidden');
+        }
+    });
+    
+    // Form submission handling
+    document.getElementById('classificationForm').addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+    });
+    
+    document.getElementById('businessForm').addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+    });
+    
+    // Auto-expand upload submenu since we're on upload page
+    const submenu = document.getElementById('upload-submenu');
+    const arrow = document.getElementById('upload-menu-arrow');
+    
+    if (submenu && arrow) {
+        submenu.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+    }
+    
+    // Show only the relevant section based on URL hash
+    function showRelevantSection() {
+        const aiSection = document.getElementById('ai-classification');
+        const businessSection = document.getElementById('business-upload');
+        const instructions = document.querySelector('.bg-blue-50');
+        
+        // Hide all sections initially
+        aiSection.style.display = 'none';
+        businessSection.style.display = 'none';
+        instructions.style.display = 'none';
+        
+        // Show section based on URL hash or default to both
+        const hash = window.location.hash;
+        
+        if (hash === '#ai-classification') {
+            aiSection.style.display = 'block';
+        } else if (hash === '#business-upload') {
+            businessSection.style.display = 'block';
+        } else {
+            // Default: show both sections (for direct navigation to /upload)
+            aiSection.style.display = 'block';
+            businessSection.style.display = 'block';
+            instructions.style.display = 'block';
+        }
+    }
+    
+    // Initial call
+    showRelevantSection();
+    
+    // Listen for hash changes (when navigating via submenu)
+    window.addEventListener('hashchange', showRelevantSection);
+});
+</script>
+{% endblock %}

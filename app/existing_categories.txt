@@ -1,0 +1,28 @@
+Non-Disclosure Agreement (NDA)
+Business Proposal
+Employee Handbook
+Job Description
+Bank Transaction Data
+Census and Demographic Data
+Public Health Data
+Ledger Files
+Batch Scripts
+Source Code
+Pan Card
+Voter ID
+Passport
+Driving License
+Healthcare Records
+Geospatial and Location Data
+Customer Feedback
+Authentication Logs
+Utility Bills
+Kubernetes configuration files
+CI/CD pipeline definitions
+Data Serialization
+Infrastructure as Code
+Metadata Storage
+Research Paper
+Meeting Notes
+Resume
+Press Release

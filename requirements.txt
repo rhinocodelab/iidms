@@ -1,0 +1,11 @@
+fastapi==0.116.1
+ibm_watsonx_ai==1.3.32
+python-docx
+python-dotenv==1.1.1
+python-multipart
+PyYAML
+PyPDF2
+openpyxl
+uvicorn
+jinja2
+reportlab
