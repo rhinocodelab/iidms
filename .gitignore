@@ -164,3 +164,7 @@ cython_debug/
 
 # Cursor IDE
 .cursor/
+
+# GhostLayer AI Configuration Files
+app/ghostlayer_ocr.ini
+app/ghostlayer.json

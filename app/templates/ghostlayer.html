@@ -1,0 +1,761 @@
+{% extends "base.html" %}
+
+{% block title %}GhostLayer AI - IDMS{% endblock %}
+
+{% block page_title %}GhostLayer AI{% endblock %}
+{% block page_subtitle %}Advanced AI Document Processing and Analysis{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+
+    <!-- Upload Section -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold text-gray-900">
+                <i class="fas fa-images mr-2"></i>Upload Images for AI Processing
+            </h2>
+        </div>
+        
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors duration-200" id="drop-zone">
+            <div class="space-y-4">
+                <i class="fas fa-image text-4xl text-gray-400"></i>
+                <div>
+                    <p class="text-lg font-medium text-gray-700">Drag & drop images here</p>
+                    <p class="text-sm text-gray-500">or click to browse images</p>
+                </div>
+                <div class="text-xs text-gray-400">
+                    Supported formats: JPEG, PNG, JPG
+                </div>
+            </div>
+            <input type="file" id="file-input" multiple accept=".jpeg,.png,.jpg" class="hidden">
+        </div>
+    </div>
+
+    <!-- Documents Table -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-900">
+                    <i class="fas fa-table mr-2"></i>Image Processing Queue
+                </h2>
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <input type="text" id="search-input" placeholder="Search images..." 
+                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                    <select id="status-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                    <button onclick="refreshData()" class="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 transition-colors duration-200 flex items-center">
+                        <i class="fas fa-sync-alt mr-2"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-image mr-1"></i>Image Name
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-tag mr-1"></i>Type
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-file-image mr-1"></i>Format
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-weight-hanging mr-1"></i>Size
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-tasks mr-1"></i>Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <i class="fas fa-cog mr-1"></i>Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="documents-table-body" class="bg-white divide-y divide-gray-200">
+                    <!-- Documents will be loaded here dynamically -->
+                    <tr id="no-documents-row" class="hidden">
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            <i class="fas fa-images text-4xl mb-4"></i>
+                            <p class="text-lg font-medium">No images found</p>
+                            <p class="text-sm">Upload your first image to get started with GhostLayer AI processing.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                Showing <span id="showing-start">0</span> to <span id="showing-end">0</span> of <span id="total-count">0</span> images
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="prev-page" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-chevron-left mr-1"></i>Previous
+                </button>
+                <span id="page-info" class="px-3 py-2 text-sm text-gray-700">Page 1 of 1</span>
+                <button id="next-page" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Next<i class="fas fa-chevron-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div id="progress-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">Processing Document</h3>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-robot text-4xl text-purple-600 mb-4"></i>
+                        <h4 class="text-lg font-medium text-gray-900 mb-2" id="progress-title">Analyzing Document</h4>
+                        <p class="text-sm text-gray-600" id="progress-description">Extracting text and identifying document type...</p>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+                        <div id="progress-bar" class="bg-purple-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    
+                    <!-- Progress Steps -->
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <div id="step-upload" class="flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2 hidden" id="step-upload-icon"></i>
+                            <i class="fas fa-spinner fa-spin text-purple-500 mr-2" id="step-upload-spinner"></i>
+                            <span>Uploading file...</span>
+                        </div>
+                        <div id="step-ocr" class="flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2 hidden" id="step-ocr-icon"></i>
+                            <i class="fas fa-spinner fa-spin text-purple-500 mr-2 hidden" id="step-ocr-spinner"></i>
+                            <span>Extracting text with OCR...</span>
+                        </div>
+                        <div id="step-classify" class="flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2 hidden" id="step-classify-icon"></i>
+                            <i class="fas fa-spinner fa-spin text-purple-500 mr-2 hidden" id="step-classify-spinner"></i>
+                            <span>Classifying document type...</span>
+                        </div>
+                        <div id="step-save" class="flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2 hidden" id="step-save-icon"></i>
+                            <i class="fas fa-spinner fa-spin text-purple-500 mr-2 hidden" id="step-save-spinner"></i>
+                            <span>Saving results...</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Preview -->
+                    <div id="results-preview" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+                        <h5 class="font-medium text-gray-900 mb-2">Document Identified:</h5>
+                        <div class="text-sm text-gray-600">
+                            <p><strong>Type:</strong> <span id="result-type">-</span></p>
+                            <p><strong>Confidence:</strong> <span id="result-confidence">-</span></p>
+                            <p><strong>Keywords Found:</strong> <span id="result-keywords">-</span></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="mt-6 flex justify-center space-x-3">
+                        <button id="close-progress" onclick="hideProgressModal()" 
+                                class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 hidden">
+                            Close
+                        </button>
+                        <button id="view-document" onclick="viewDocumentResult()" 
+                                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 hidden">
+                            <i class="fas fa-eye mr-2"></i>View Document
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Details Modal -->
+<div id="document-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900" id="modal-document-name">Image Details</h3>
+                    <button onclick="hideDocumentModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6" id="document-details-content">
+                <!-- Image details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup event listeners first
+    setupEventListeners();
+    
+    // Load initial data with a small delay to ensure DOM is ready
+    setTimeout(() => {
+        loadDocuments();
+        loadStats();
+    }, 100);
+});
+
+// Also try to load data when window is fully loaded
+window.addEventListener('load', function() {
+    // Ensure data is loaded even if DOMContentLoaded didn't work
+    const tbody = document.getElementById('documents-table-body');
+    if (tbody && tbody.children.length === 0) {
+        loadDocuments();
+        loadStats();
+    }
+});
+
+function setupEventListeners() {
+    // File upload handlers
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', handleDragOver);
+    dropZone.addEventListener('drop', handleDrop);
+    
+    // Handle file selection from browse dialog
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            handleFiles(e.target.files);
+        }
+    });
+    
+    // No upload form needed - files are processed directly on drop
+    
+    // Search and filter
+    document.getElementById('search-input').addEventListener('input', debounce(loadDocuments, 300));
+    document.getElementById('status-filter').addEventListener('change', loadDocuments);
+    
+    // Pagination
+    document.getElementById('prev-page').addEventListener('click', () => changePage(-1));
+    document.getElementById('next-page').addEventListener('click', () => changePage(1));
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-purple-400', 'bg-purple-50');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-purple-400', 'bg-purple-50');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFiles(files);
+    }
+}
+
+
+function handleFiles(files) {
+    const allowedFormats = ['image/jpeg', 'image/jpg', 'image/png'];
+    
+    Array.from(files).forEach(file => {
+        if (!allowedFormats.includes(file.type)) {
+            showNotification(`File ${file.name} has unsupported format. Only JPEG, PNG, and JPG files are allowed.`, 'error');
+            return;
+        }
+        processDocumentWithProgress(file);
+    });
+}
+
+
+async function loadDocuments(page = 1) {
+    const search = document.getElementById('search-input').value;
+    const status = document.getElementById('status-filter').value;
+    
+    // Show loading state
+    showTableLoading();
+    
+    const params = new URLSearchParams({
+        page: page,
+        limit: 10,
+        ...(search && { search }),
+        ...(status && { status })
+    });
+    
+    try {
+        const response = await fetch(`/api/ghostlayer/documents?${params}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.documents) {
+            renderDocumentsTable(data.documents);
+            updatePagination(data.pagination);
+        } else {
+            console.error('Invalid response format:', data);
+            renderDocumentsTable([]);
+        }
+    } catch (error) {
+        console.error('Error loading documents:', error);
+        // Show empty state on error
+        renderDocumentsTable([]);
+    }
+}
+
+function showTableLoading() {
+    const tbody = document.getElementById('documents-table-body');
+    const noDocumentsRow = document.getElementById('no-documents-row');
+    
+    if (!tbody) {
+        console.error('documents-table-body element not found');
+        return;
+    }
+    
+    // Clear existing content
+    tbody.innerHTML = '';
+    
+    if (noDocumentsRow) {
+        noDocumentsRow.classList.add('hidden');
+    }
+    
+    // Show loading row
+    const loadingRow = document.createElement('tr');
+    loadingRow.innerHTML = `
+        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+            <i class="fas fa-spinner fa-spin text-2xl mb-4"></i>
+            <p class="text-lg font-medium">Loading documents...</p>
+        </td>
+    `;
+    tbody.appendChild(loadingRow);
+}
+
+async function loadStats() {
+    try {
+        const response = await fetch('/api/ghostlayer/stats');
+        const stats = await response.json();
+        
+        // Check if elements exist before updating
+        const totalDocumentsEl = document.getElementById('total-documents');
+        const statsTotalEl = document.getElementById('stats-total');
+        const statsCompletedEl = document.getElementById('stats-completed');
+        const statsProcessingEl = document.getElementById('stats-processing');
+        const statsFailedEl = document.getElementById('stats-failed');
+        
+        if (totalDocumentsEl) totalDocumentsEl.textContent = stats.total_documents;
+        if (statsTotalEl) statsTotalEl.textContent = stats.total_documents;
+        if (statsCompletedEl) statsCompletedEl.textContent = stats.status_counts.completed || 0;
+        if (statsProcessingEl) statsProcessingEl.textContent = stats.status_counts.processing || 0;
+        if (statsFailedEl) statsFailedEl.textContent = stats.status_counts.failed || 0;
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+function renderDocumentsTable(documents) {
+    const tbody = document.getElementById('documents-table-body');
+    const noDocumentsRow = document.getElementById('no-documents-row');
+    
+    if (!tbody) {
+        console.error('documents-table-body element not found');
+        return;
+    }
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    if (documents.length === 0) {
+        if (noDocumentsRow) {
+            noDocumentsRow.classList.remove('hidden');
+            tbody.appendChild(noDocumentsRow);
+        }
+        return;
+    }
+    
+    if (noDocumentsRow) {
+        noDocumentsRow.classList.add('hidden');
+    }
+    
+    documents.forEach(doc => {
+        const row = createDocumentRow(doc);
+        tbody.appendChild(row);
+    });
+}
+
+function createDocumentRow(doc) {
+    const row = document.createElement('tr');
+    row.className = 'hover:bg-gray-50';
+    
+    const statusBadge = getStatusBadge(doc.processing_status);
+    const formattedSize = formatFileSize(doc.document_size);
+    
+    row.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 h-10 w-10">
+                    <div class="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                        <i class="fas fa-image text-purple-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <div class="text-sm font-medium text-gray-900">${doc.document_name}</div>
+                </div>
+            </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            ${doc.document_type || 'Unknown'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                ${doc.document_format.toUpperCase()}
+            </span>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            ${formattedSize}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+            ${statusBadge}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <div class="flex items-center space-x-2">
+                <button onclick="viewDocument(${doc.id})" class="text-purple-600 hover:text-purple-900">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button onclick="downloadDocument(${doc.id})" class="text-blue-600 hover:text-blue-900" title="Download Document">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button onclick="downloadCoordinates(${doc.id})" class="text-purple-600 hover:text-purple-900" title="Download Coordinates JSON">
+                    <i class="fas fa-code"></i>
+                </button>
+                <button onclick="deleteDocument(${doc.id})" class="text-red-600 hover:text-red-900" title="Delete Document">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    
+    return row;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><i class="fas fa-clock mr-1"></i>Pending</span>',
+        'processing': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"><i class="fas fa-spinner fa-spin mr-1"></i>Processing</span>',
+        'completed': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fas fa-check mr-1"></i>Completed</span>',
+        'failed': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><i class="fas fa-times mr-1"></i>Failed</span>'
+    };
+    
+    return badges[status] || badges['pending'];
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function updatePagination(pagination) {
+    document.getElementById('showing-start').textContent = pagination.start;
+    document.getElementById('showing-end').textContent = pagination.end;
+    document.getElementById('total-count').textContent = pagination.total;
+    document.getElementById('page-info').textContent = `Page ${pagination.page} of ${pagination.pages}`;
+    
+    document.getElementById('prev-page').disabled = pagination.page <= 1;
+    document.getElementById('next-page').disabled = pagination.page >= pagination.pages;
+}
+
+function changePage(direction) {
+    const currentPage = parseInt(document.getElementById('page-info').textContent.match(/Page (\d+)/)[1]);
+    const newPage = currentPage + direction;
+    loadDocuments(newPage);
+}
+
+function showProgressModal() {
+    document.getElementById('progress-modal').classList.remove('hidden');
+    resetProgressSteps();
+}
+
+function hideProgressModal() {
+    document.getElementById('progress-modal').classList.add('hidden');
+    resetProgressSteps();
+}
+
+function resetProgressSteps() {
+    // Reset progress bar
+    document.getElementById('progress-bar').style.width = '0%';
+    
+    // Reset all steps
+    const steps = ['upload', 'ocr', 'classify', 'save'];
+    steps.forEach(step => {
+        document.getElementById(`step-${step}-icon`).classList.add('hidden');
+        document.getElementById(`step-${step}-spinner`).classList.add('hidden');
+    });
+    
+    // Show first step as active
+    document.getElementById('step-upload-spinner').classList.remove('hidden');
+    
+    // Hide results and buttons
+    document.getElementById('results-preview').classList.add('hidden');
+    document.getElementById('close-progress').classList.add('hidden');
+    document.getElementById('view-document').classList.add('hidden');
+}
+
+function updateProgressStep(step, status) {
+    const icon = document.getElementById(`step-${step}-icon`);
+    const spinner = document.getElementById(`step-${step}-spinner`);
+    
+    if (status === 'completed') {
+        icon.classList.remove('hidden');
+        spinner.classList.add('hidden');
+    } else if (status === 'active') {
+        icon.classList.add('hidden');
+        spinner.classList.remove('hidden');
+    }
+}
+
+function updateProgressBar(percentage) {
+    document.getElementById('progress-bar').style.width = `${percentage}%`;
+}
+
+function showResults(result) {
+    document.getElementById('result-type').textContent = result.document_name || 'Unknown';
+    document.getElementById('result-confidence').textContent = `${Math.round((result.confidence_score || 0) * 100)}%`;
+    document.getElementById('result-keywords').textContent = (result.matched_keywords || []).join(', ') || 'None';
+    
+    document.getElementById('results-preview').classList.remove('hidden');
+    document.getElementById('close-progress').classList.remove('hidden');
+    document.getElementById('view-document').classList.remove('hidden');
+}
+
+async function processDocumentWithProgress(file) {
+    showProgressModal();
+    
+    try {
+        // Step 1: Upload
+        updateProgressStep('upload', 'active');
+        updateProgressBar(25);
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Step 2: OCR Processing
+        updateProgressStep('upload', 'completed');
+        updateProgressStep('ocr', 'active');
+        updateProgressBar(50);
+        
+        const response = await fetch('/api/ghostlayer/identify', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Document processing failed');
+        }
+        
+        const result = await response.json();
+        
+        // Step 3: Classification
+        updateProgressStep('ocr', 'completed');
+        updateProgressStep('classify', 'active');
+        updateProgressBar(75);
+        
+        // Simulate classification delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Step 4: Save
+        updateProgressStep('classify', 'completed');
+        updateProgressStep('save', 'active');
+        updateProgressBar(100);
+        
+        // Simulate save delay
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        updateProgressStep('save', 'completed');
+        
+        // Show results
+        showResults(result);
+        
+        // Refresh the documents table
+        loadDocuments();
+        loadStats();
+        
+    } catch (error) {
+        console.error('Error processing document:', error);
+        showNotification('Failed to process document. Please try again.', 'error');
+        hideProgressModal();
+    }
+}
+
+function viewDocumentResult() {
+    hideProgressModal();
+    // This would navigate to the document details or refresh the table
+    loadDocuments();
+}
+
+function refreshData() {
+    // Show loading state
+    showTableLoading();
+    
+    // Reload both documents and stats
+    loadDocuments();
+    loadStats();
+    
+    // Show notification
+    showNotification('Data refreshed successfully!', 'success');
+}
+
+function showDocumentModal() {
+    document.getElementById('document-modal').classList.remove('hidden');
+}
+
+function hideDocumentModal() {
+    document.getElementById('document-modal').classList.add('hidden');
+}
+
+function viewDocument(id) {
+    // Navigate to document viewer page
+    window.location.href = `/ghostlayer-ai/view?id=${id}`;
+}
+
+function downloadDocument(id) {
+    // Implement document download logic
+    window.open(`/api/ghostlayer/download/${id}`, '_blank');
+}
+
+function downloadCoordinates(id) {
+    // Download coordinates JSON file
+    window.open(`/api/ghostlayer/coordinates/${id}`, '_blank');
+}
+
+async function deleteDocument(id) {
+    // Show custom confirmation modal
+    showDeleteConfirmationModal(id);
+}
+
+function showDeleteConfirmationModal(documentId) {
+    // Create modal HTML
+    const modalHTML = `
+        <div id="delete-confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-lg font-medium text-gray-900">Delete Document</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4">
+                    <p class="text-sm text-gray-600">
+                        Are you sure you want to delete this document? This action cannot be undone.
+                    </p>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end space-x-3">
+                    <button onclick="hideDeleteConfirmationModal()" 
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200">
+                        Cancel
+                    </button>
+                    <button onclick="confirmDeleteDocument(${documentId})" 
+                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200">
+                        <i class="fas fa-trash mr-2"></i>
+                        Delete Document
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function hideDeleteConfirmationModal() {
+    const modal = document.getElementById('delete-confirmation-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+async function confirmDeleteDocument(documentId) {
+    // Hide modal first
+    hideDeleteConfirmationModal();
+    
+    try {
+        const response = await fetch(`/api/ghostlayer/delete/${documentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadDocuments();
+            loadStats();
+            showNotification('Document deleted successfully!', 'success');
+        } else {
+            throw new Error('Delete failed');
+        }
+    } catch (error) {
+        showNotification('Failed to delete document. Please try again.', 'error');
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+        type === 'success' ? 'bg-green-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+        'bg-blue-500 text-white'
+    }`;
+    
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle mr-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+</script>
+{% endblock %}

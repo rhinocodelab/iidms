@@ -35,10 +35,38 @@ class IDMSDatabase:
         self.create_user_sessions_table(cursor)
         self.create_error_logs_table(cursor)
         self.create_configuration_table(cursor)
+        self.create_ghostlayer_documents_table(cursor)
         
         conn.commit()
         conn.close()
         logger.info("Database initialized successfully")
+    
+    def migrate_database(self):
+        """Migrate existing database to add new columns"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Check if ghostlayer_documents table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ghostlayer_documents'")
+            if cursor.fetchone():
+                # Check if coordinates_json_path column exists
+                cursor.execute("PRAGMA table_info(ghostlayer_documents)")
+                columns = [column[1] for column in cursor.fetchall()]
+                
+                if 'coordinates_json_path' not in columns:
+                    cursor.execute("ALTER TABLE ghostlayer_documents ADD COLUMN coordinates_json_path TEXT")
+                    logger.info("Added coordinates_json_path column to existing ghostlayer_documents table")
+                else:
+                    logger.info("coordinates_json_path column already exists in ghostlayer_documents table")
+            
+            conn.commit()
+            logger.info("Database migration completed successfully")
+            
+        except Exception as e:
+            logger.error(f"Database migration failed: {e}")
+        finally:
+            conn.close()
     
     def create_documents_table(self, cursor):
         """Documents table - stores information about processed documents"""
@@ -198,6 +226,39 @@ class IDMSDatabase:
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+    
+    def create_ghostlayer_documents_table(self, cursor):
+        """GhostLayer AI documents table - stores documents processed by GhostLayer AI"""
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ghostlayer_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_name TEXT NOT NULL,
+                document_type TEXT NOT NULL,
+                document_format TEXT NOT NULL,
+                document_size INTEGER NOT NULL,
+                document_path TEXT NOT NULL,
+                coordinates_json_path TEXT, -- Path to JSON file with text coordinates
+                upload_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                processing_status TEXT DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+                ai_analysis_result TEXT, -- JSON object with AI analysis results
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Add coordinates_json_path column if it doesn't exist (for existing tables)
+        try:
+            # Check if column exists
+            cursor.execute("PRAGMA table_info(ghostlayer_documents)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'coordinates_json_path' not in columns:
+                cursor.execute("ALTER TABLE ghostlayer_documents ADD COLUMN coordinates_json_path TEXT")
+                logger.info("Added coordinates_json_path column to ghostlayer_documents table")
+            else:
+                logger.info("coordinates_json_path column already exists")
+        except Exception as e:
+            logger.warning(f"Could not add coordinates_json_path column: {e}")
 
     # Document Operations
     def insert_document(self, document_data: Dict) -> int:
@@ -508,5 +569,160 @@ class IDMSDatabase:
         
         return result[0] if result else None
 
+    # GhostLayer Documents Operations
+    def insert_ghostlayer_document(self, document_data: Dict) -> int:
+        """Insert a new GhostLayer document record"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO ghostlayer_documents (
+                document_name, document_type, document_format, document_size,
+                document_path, coordinates_json_path, processing_status, ai_analysis_result
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            document_data['document_name'],
+            document_data['document_type'],
+            document_data['document_format'],
+            document_data['document_size'],
+            document_data['document_path'],
+            document_data.get('coordinates_json_path'),
+            document_data.get('processing_status', 'pending'),
+            json.dumps(document_data.get('ai_analysis_result', {}))
+        ))
+        
+        document_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"GhostLayer document inserted with ID: {document_id}")
+        return document_id
+    
+    def get_ghostlayer_documents(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Get GhostLayer documents with pagination"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM ghostlayer_documents 
+            ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        
+        documents = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return documents
+    
+    def get_ghostlayer_document_by_id(self, document_id: int) -> Optional[Dict]:
+        """Get a specific GhostLayer document by ID"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM ghostlayer_documents WHERE id = ?", (document_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        return dict(row) if row else None
+    
+    def update_ghostlayer_document_status(self, document_id: int, status: str, ai_result: Dict = None) -> bool:
+        """Update GhostLayer document processing status"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            if ai_result:
+                cursor.execute("""
+                    UPDATE ghostlayer_documents 
+                    SET processing_status = ?, ai_analysis_result = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (status, json.dumps(ai_result), document_id))
+            else:
+                cursor.execute("""
+                    UPDATE ghostlayer_documents 
+                    SET processing_status = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (status, document_id))
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"GhostLayer document {document_id} status updated to {status}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating GhostLayer document {document_id}: {e}")
+            conn.close()
+            return False
+    
+    def get_ghostlayer_stats(self) -> Dict:
+        """Get GhostLayer documents statistics"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Total documents
+        cursor.execute("SELECT COUNT(*) FROM ghostlayer_documents")
+        total_documents = cursor.fetchone()[0]
+        
+        # Documents by status
+        cursor.execute("""
+            SELECT processing_status, COUNT(*) 
+            FROM ghostlayer_documents 
+            GROUP BY processing_status
+        """)
+        status_counts = dict(cursor.fetchall())
+        
+        # Documents by type
+        cursor.execute("""
+            SELECT document_type, COUNT(*) 
+            FROM ghostlayer_documents 
+            GROUP BY document_type
+        """)
+        type_counts = dict(cursor.fetchall())
+        
+        # Documents by format
+        cursor.execute("""
+            SELECT document_format, COUNT(*) 
+            FROM ghostlayer_documents 
+            GROUP BY document_format
+        """)
+        format_counts = dict(cursor.fetchall())
+        
+        # Total size
+        cursor.execute("SELECT SUM(document_size) FROM ghostlayer_documents")
+        total_size = cursor.fetchone()[0] or 0
+        
+        conn.close()
+        
+        return {
+            'total_documents': total_documents,
+            'status_counts': status_counts,
+            'type_counts': type_counts,
+            'format_counts': format_counts,
+            'total_size': total_size
+        }
+    
+    def delete_ghostlayer_document(self, document_id: int) -> bool:
+        """Delete a GhostLayer document record"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("DELETE FROM ghostlayer_documents WHERE id = ?", (document_id,))
+            conn.commit()
+            conn.close()
+            
+            if cursor.rowcount > 0:
+                logger.info(f"GhostLayer document {document_id} deleted successfully")
+                return True
+            else:
+                logger.warning(f"GhostLayer document {document_id} not found for deletion")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting GhostLayer document {document_id}: {e}")
+            conn.close()
+            return False
+
 # Global database instance
 db = IDMSDatabase()
+# Run migration to add new columns to existing tables
+db.migrate_database()

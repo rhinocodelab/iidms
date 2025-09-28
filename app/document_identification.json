@@ -1,0 +1,166 @@
+{
+    "document_types": {
+      "pancard": {
+        "name": "PAN Card",
+        "description": "Indian Permanent Account Number Card",
+        "keywords": [
+          "permanent account number",
+          "pan card",
+          "income tax department",
+          "permanent account",
+          "pan no",
+          "pan number"
+        ],
+        "confidence_threshold": 0.3
+      },
+      "aadhaar": {
+        "name": "Aadhaar Card",
+        "description": "Indian Aadhaar Identity Card",
+        "keywords": [
+          "aadhaar",
+          "आधार",
+          "माझे आधार",
+          "माझी ओळख",
+          "uidai",
+          "unique identification authority",
+          "government of india",
+          "aadhaar number",
+          "aadhaar card",
+          "Government of India",
+          "भारत सरकार",
+          "dob",
+          "date of birth",
+          "जन्म तारीख",
+          "male",
+          "female",
+          "पुरुष",
+          "महिला"
+        ],
+        "confidence_threshold": 0.2
+      },
+      "drivers_license": {
+        "name": "Driver's License",
+        "description": "Driving License Document",
+        "keywords": [
+          "driving license",
+          "driver's license",
+          "drivers license",
+          "department of motor vehicles",
+          "dmv",
+          "license number",
+          "driving permit",
+          "vehicle registration"
+        ],
+        "confidence_threshold": 0.3
+      },
+      "passport": {
+        "name": "Passport",
+        "description": "International Passport Document",
+        "keywords": [
+          "passport",
+          "passport number",
+          "passport no",
+          "ministry of external affairs",
+          "government of india",
+          "passport authority",
+          "international travel"
+        ],
+        "confidence_threshold": 0.3
+      },
+      "voter_id": {
+        "name": "Voter ID Card",
+        "description": "Voter Identification Card",
+        "keywords": [
+          "voter id",
+          "voter identification",
+          "election commission",
+          "voting card",
+          "electoral roll",
+          "voter number"
+        ],
+        "confidence_threshold": 0.3
+      },
+      "bank_statement": {
+        "name": "Bank Statement",
+        "description": "Bank Account Statement",
+        "keywords": [
+          "bank statement",
+          "account statement",
+          "account number",
+          "bank account",
+          "transaction history",
+          "balance",
+          "bank name",
+          "ifsc code"
+        ],
+        "confidence_threshold": 0.4
+      },
+      "salary_slip": {
+        "name": "Salary Slip",
+        "description": "Employee Salary Slip",
+        "keywords": [
+          "salary slip",
+          "payslip",
+          "pay slip",
+          "employee id",
+          "gross salary",
+          "net salary",
+          "basic salary",
+          "allowances",
+          "deductions"
+        ],
+        "confidence_threshold": 0.4
+      },
+      "utility_bill": {
+        "name": "Utility Bill",
+        "description": "Electricity, Water, Gas, or Internet Bill",
+        "keywords": [
+          "electricity bill",
+          "water bill",
+          "gas bill",
+          "internet bill",
+          "utility bill",
+          "power bill",
+          "energy bill",
+          "telephone bill",
+          "mobile bill"
+        ],
+        "confidence_threshold": 0.3
+      },
+      "rental_agreement": {
+        "name": "Rental Agreement",
+        "description": "House/Property Rental Agreement",
+        "keywords": [
+          "rental agreement",
+          "lease agreement",
+          "tenancy agreement",
+          "rent agreement",
+          "property agreement",
+          "landlord",
+          "tenant",
+          "monthly rent"
+        ],
+        "confidence_threshold": 0.4
+      },
+      "birth_certificate": {
+        "name": "Birth Certificate",
+        "description": "Official Birth Certificate",
+        "keywords": [
+          "birth certificate",
+          "birth registration",
+          "date of birth",
+          "place of birth",
+          "birth record",
+          "certificate of birth"
+        ],
+        "confidence_threshold": 0.4
+      }
+    },
+    "classification_settings": {
+      "case_sensitive": false,
+      "partial_match": true,
+      "minimum_keywords_found": 1,
+      "fallback_document_type": "unknown"
+    }
+  }
+  
