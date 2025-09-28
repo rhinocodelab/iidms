@@ -1,0 +1,3 @@
+# This file ensures the upload_ghostlayer_docs directory is tracked by Git
+# even when it's empty. This is useful for maintaining the directory structure
+# in version control.

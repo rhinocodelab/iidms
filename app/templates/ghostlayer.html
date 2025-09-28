@@ -10,14 +10,14 @@
 
 
     <!-- Upload Section -->
-    <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="bg-white  shadow-md p-6">
         <div class="mb-6">
             <h2 class="text-xl font-semibold text-gray-900">
                 <i class="fas fa-images mr-2"></i>Upload Images for AI Processing
             </h2>
         </div>
         
-        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors duration-200" id="drop-zone">
+        <div class="border-2 border-dashed border-gray-300  p-8 text-center hover:border-purple-400 transition-colors duration-200" id="drop-zone">
             <div class="space-y-4">
                 <i class="fas fa-image text-4xl text-gray-400"></i>
                 <div>
@@ -33,7 +33,7 @@
     </div>
 
     <!-- Documents Table -->
-    <div class="bg-white rounded-lg shadow-md">
+    <div class="bg-white  shadow-md">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex items-center justify-between">
                 <h2 class="text-xl font-semibold text-gray-900">
@@ -42,10 +42,10 @@
                 <div class="flex items-center space-x-4">
                     <div class="relative">
                         <input type="text" id="search-input" placeholder="Search images..." 
-                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                               class="pl-10 pr-4 py-2 border border-gray-300  focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                         <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                     </div>
-                    <select id="status-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <select id="status-filter" class="px-4 py-2 border border-gray-300  focus:ring-2 focus:ring-purple-500">
                         <option value="">All Status</option>
                         <option value="pending">Pending</option>
                         <option value="processing">Processing</option>
@@ -65,7 +65,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <i class="fas fa-image mr-1"></i>Image Name
+                            Image Name
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <i class="fas fa-tag mr-1"></i>Type
@@ -103,11 +103,11 @@
                 Showing <span id="showing-start">0</span> to <span id="showing-end">0</span> of <span id="total-count">0</span> images
             </div>
             <div class="flex items-center space-x-2">
-                <button id="prev-page" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button id="prev-page" class="px-3 py-2 border border-gray-300  text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
                     <i class="fas fa-chevron-left mr-1"></i>Previous
                 </button>
                 <span id="page-info" class="px-3 py-2 text-sm text-gray-700">Page 1 of 1</span>
-                <button id="next-page" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button id="next-page" class="px-3 py-2 border border-gray-300  text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
                     Next<i class="fas fa-chevron-right ml-1"></i>
                 </button>
             </div>
@@ -118,7 +118,7 @@
 <!-- Progress Modal -->
 <div id="progress-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
     <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="bg-white  shadow-xl max-w-md w-full">
             <div class="px-6 py-4 border-b border-gray-200">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900">Processing Document</h3>
@@ -133,8 +133,8 @@
                     </div>
                     
                     <!-- Progress Bar -->
-                    <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
-                        <div id="progress-bar" class="bg-purple-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    <div class="w-full bg-gray-200  h-2 mb-4">
+                        <div id="progress-bar" class="bg-purple-600 h-2  transition-all duration-300" style="width: 0%"></div>
                     </div>
                     
                     <!-- Progress Steps -->
@@ -162,7 +162,7 @@
                     </div>
                     
                     <!-- Results Preview -->
-                    <div id="results-preview" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+                    <div id="results-preview" class="mt-6 p-4 bg-gray-50  hidden">
                         <h5 class="font-medium text-gray-900 mb-2">Document Identified:</h5>
                         <div class="text-sm text-gray-600">
                             <p><strong>Type:</strong> <span id="result-type">-</span></p>
@@ -174,11 +174,11 @@
                     <!-- Action Buttons -->
                     <div class="mt-6 flex justify-center space-x-3">
                         <button id="close-progress" onclick="hideProgressModal()" 
-                                class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 hidden">
+                                class="px-4 py-2 bg-gray-500 text-white  hover:bg-gray-600 transition-colors duration-200 hidden">
                             Close
                         </button>
                         <button id="view-document" onclick="viewDocumentResult()" 
-                                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 hidden">
+                                class="px-4 py-2 bg-purple-600 text-white  hover:bg-purple-700 transition-colors duration-200 hidden">
                             <i class="fas fa-eye mr-2"></i>View Document
                         </button>
                     </div>
@@ -191,7 +191,7 @@
 <!-- Document Details Modal -->
 <div id="document-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
     <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white  shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div class="px-6 py-4 border-b border-gray-200">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900" id="modal-document-name">Image Details</h3>
@@ -412,16 +412,7 @@ function createDocumentRow(doc) {
     
     row.innerHTML = `
         <td class="px-6 py-4 whitespace-nowrap">
-            <div class="flex items-center">
-                <div class="flex-shrink-0 h-10 w-10">
-                    <div class="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                        <i class="fas fa-image text-purple-600"></i>
-                    </div>
-                </div>
-                <div class="ml-4">
-                    <div class="text-sm font-medium text-gray-900">${doc.document_name}</div>
-                </div>
-            </div>
+            <div class="text-sm font-medium text-gray-900">${doc.document_name}</div>
         </td>
         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
             ${doc.document_type || 'Unknown'}
@@ -441,12 +432,6 @@ function createDocumentRow(doc) {
             <div class="flex items-center space-x-2">
                 <button onclick="viewDocument(${doc.id})" class="text-purple-600 hover:text-purple-900">
                     <i class="fas fa-eye"></i>
-                </button>
-                <button onclick="downloadDocument(${doc.id})" class="text-blue-600 hover:text-blue-900" title="Download Document">
-                    <i class="fas fa-download"></i>
-                </button>
-                <button onclick="downloadCoordinates(${doc.id})" class="text-purple-600 hover:text-purple-900" title="Download Coordinates JSON">
-                    <i class="fas fa-code"></i>
                 </button>
                 <button onclick="deleteDocument(${doc.id})" class="text-red-600 hover:text-red-900" title="Delete Document">
                     <i class="fas fa-trash"></i>
@@ -659,7 +644,7 @@ function showDeleteConfirmationModal(documentId) {
     // Create modal HTML
     const modalHTML = `
         <div id="delete-confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="bg-white  shadow-xl max-w-md w-full mx-4">
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
@@ -675,13 +660,13 @@ function showDeleteConfirmationModal(documentId) {
                         Are you sure you want to delete this document? This action cannot be undone.
                     </p>
                 </div>
-                <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end space-x-3">
+                <div class="px-6 py-4 bg-gray-50 -b-lg flex justify-end space-x-3">
                     <button onclick="hideDeleteConfirmationModal()" 
-                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200">
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300  hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200">
                         Cancel
                     </button>
                     <button onclick="confirmDeleteDocument(${documentId})" 
-                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200">
+                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent  hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200">
                         <i class="fas fa-trash mr-2"></i>
                         Delete Document
                     </button>
@@ -725,7 +710,7 @@ async function confirmDeleteDocument(documentId) {
 function showNotification(message, type = 'info') {
     // Create notification element
     const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+    notification.className = `fixed top-4 right-4 z-50 p-4  shadow-lg max-w-sm ${
         type === 'success' ? 'bg-green-500 text-white' :
         type === 'error' ? 'bg-red-500 text-white' :
         'bg-blue-500 text-white'

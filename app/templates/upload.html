@@ -15,9 +15,9 @@
             <div class="flex flex-col lg:flex-row gap-6">
                 <!-- Upload Card -->
                 <div class="lg:w-2/3">
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="bg-white  shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center mb-4">
-                    <div class="bg-blue-100 p-3 rounded-full mr-4">
+                    <div class="bg-blue-100 p-3 rounded-lg mr-4">
                         <i class="fas fa-brain text-xl text-blue-600"></i>
                     </div>
                     <div>
@@ -29,7 +29,7 @@
                 <form action="/upload_files" method="post" enctype="multipart/form-data" id="classificationForm">
                     <div class="space-y-4">
                         <!-- File Input -->
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                        <div class="border-2 border-dashed border-gray-300  p-8 text-center hover:border-blue-400 transition-colors">
                             <input type="file" name="files" multiple accept=".pdf,.docx,.odt,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.zip,.7z,.tar,.gz,.bz2,.xz,.rar,.txt,.json,.yaml,.yml" 
                                    id="classificationFiles" class="hidden" required>
                             <label for="classificationFiles" class="cursor-pointer">
@@ -59,7 +59,7 @@
                 
                 <!-- AI Classification Info Box -->
                 <div class="lg:w-96 flex-shrink-0">
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 h-fit">
+                    <div class="bg-blue-50 border border-blue-200  p-6 h-fit">
                         <h3 class="text-lg font-semibold text-blue-900 mb-3">
                             <i class="fas fa-info-circle mr-2"></i>
                             AI Document Classification Process
@@ -107,9 +107,9 @@
             <div class="flex flex-col lg:flex-row gap-6">
                 <!-- Upload Card -->
                 <div class="lg:w-2/3">
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="bg-white  shadow-sm border border-gray-200 p-6">
                 <div class="flex items-center mb-4">
-                    <div class="bg-green-100 p-3 rounded-full mr-4">
+                    <div class="bg-green-100 p-3 rounded-lg mr-4">
                         <i class="fas fa-briefcase text-xl text-green-600"></i>
                     </div>
                     <div>
@@ -121,7 +121,7 @@
                 <form action="/business_upload" method="post" enctype="multipart/form-data" id="businessForm">
                     <div class="space-y-4">
                         <!-- File Input -->
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-400 transition-colors">
+                        <div class="border-2 border-dashed border-gray-300  p-8 text-center hover:border-green-400 transition-colors">
                             <input type="file" name="file" accept=".pdf,.docx,.odt,.csv,.xlsx,.xls,.png,.jpg,.jpeg" 
                                    id="businessFile" class="hidden" required>
                             <label for="businessFile" class="cursor-pointer">
@@ -151,7 +151,7 @@
                 
                 <!-- Business Upload Info Box -->
                 <div class="lg:w-96 flex-shrink-0">
-                    <div class="bg-green-50 border border-green-200 rounded-lg p-6 h-fit">
+                    <div class="bg-green-50 border border-green-200  p-6 h-fit">
                         <h3 class="text-lg font-semibold text-green-900 mb-3">
                             <i class="fas fa-info-circle mr-2"></i>
                             Business Document Upload Process
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fileList.innerHTML = '';
             files.forEach(file => {
                 const li = document.createElement('li');
-                li.className = 'text-sm text-gray-600 bg-gray-50 p-2 rounded';
+                li.className = 'text-sm text-gray-600 bg-gray-50 p-2 ';
                 li.innerHTML = `<i class="fas fa-file mr-2"></i>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
                 fileList.appendChild(li);
             });
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileList.innerHTML = '';
                 validFiles.forEach(file => {
                     const li = document.createElement('li');
-                    li.className = 'text-sm text-gray-600 bg-gray-50 p-2 rounded';
+                    li.className = 'text-sm text-gray-600 bg-gray-50 p-2 ';
                     li.innerHTML = `<i class="fas fa-file mr-2"></i>${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
                     fileList.appendChild(li);
                 });

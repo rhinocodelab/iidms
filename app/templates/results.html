@@ -5,7 +5,7 @@
 {% block content %}
 <div class="space-y-8">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white  shadow p-6">
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Processing Results</h1>
@@ -23,26 +23,26 @@
     </div>
 
     <!-- Results Summary -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white  shadow p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">Summary</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="bg-blue-50 p-4 rounded-lg text-center">
+            <div class="bg-blue-50 p-4  text-center">
                 <div class="text-2xl font-bold text-blue-600">{{ results|length }}</div>
                 <div class="text-sm text-blue-800">Files Processed</div>
             </div>
-            <div class="bg-green-50 p-4 rounded-lg text-center">
+            <div class="bg-green-50 p-4  text-center">
                 <div class="text-2xl font-bold text-green-600">
                     {{ results.values() | selectattr('filenet_upload', 'equalto', 'Success') | list | length }}
                 </div>
                 <div class="text-sm text-green-800">Successful Uploads</div>
             </div>
-            <div class="bg-yellow-50 p-4 rounded-lg text-center">
+            <div class="bg-yellow-50 p-4  text-center">
                 <div class="text-2xl font-bold text-yellow-600">
                     {{ results.values() | selectattr('criticality', 'equalto', 'Confidential') | list | length }}
                 </div>
                 <div class="text-sm text-yellow-800">Confidential</div>
             </div>
-            <div class="bg-red-50 p-4 rounded-lg text-center">
+            <div class="bg-red-50 p-4  text-center">
                 <div class="text-2xl font-bold text-red-600">
                     {{ results.values() | selectattr('criticality', 'equalto', 'Top Secret') | list | length }}
                 </div>
@@ -52,7 +52,7 @@
     </div>
 
     <!-- Detailed Results Table -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-white  shadow overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-xl font-semibold text-gray-900">Detailed Results</h2>
         </div>
@@ -111,34 +111,34 @@
                             {% if result.Tags %}
                             <div class="text-xs text-gray-500 mt-1">
                                 {% for tag in result.Tags.split(',') %}
-                                    <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs mr-1">{{ tag.strip() }}</span>
+                                    <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1  text-xs mr-1">{{ tag.strip() }}</span>
                                 {% endfor %}
                             </div>
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if result.criticality == 'Public' %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-green-100 text-green-800">
                                     <i class="fas fa-globe mr-1"></i>{{ result.criticality }}
                                 </span>
                             {% elif result.criticality == 'Confidential' %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-yellow-100 text-yellow-800">
                                     <i class="fas fa-lock mr-1"></i>{{ result.criticality }}
                                 </span>
                             {% elif result.criticality == 'Restricted' %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-orange-100 text-orange-800">
                                     <i class="fas fa-shield-alt mr-1"></i>{{ result.criticality }}
                                 </span>
                             {% elif result.criticality == 'Top Secret' %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-red-100 text-red-800">
                                     <i class="fas fa-user-secret mr-1"></i>{{ result.criticality }}
                                 </span>
                             {% elif result.criticality == 'Classified' %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-purple-100 text-purple-800">
                                     <i class="fas fa-key mr-1"></i>{{ result.criticality }}
                                 </span>
                             {% else %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-gray-100 text-gray-800">
                                     <i class="fas fa-question mr-1"></i>{{ result.criticality }}
                                 </span>
                             {% endif %}
@@ -152,18 +152,18 @@
                                     class="text-xs text-blue-600 hover:text-blue-800 mt-1">
                                 <i class="fas fa-info-circle mr-1"></i>Show reasoning
                             </button>
-                            <div id="reasoning-{{ filename }}" class="hidden mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                            <div id="reasoning-{{ filename }}" class="hidden mt-2 p-2 bg-gray-50  text-xs text-gray-600">
                                 {{ result.reasoning }}
                             </div>
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if result.filenet_upload == 'Success' %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-green-100 text-green-800">
                                     <i class="fas fa-check mr-1"></i>Success
                                 </span>
                             {% else %}
-                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold  bg-red-100 text-red-800">
                                     <i class="fas fa-times mr-1"></i>Failed
                                 </span>
                                 <div class="text-xs text-red-600 mt-1 max-w-xs">{{ result.filenet_upload }}</div>
