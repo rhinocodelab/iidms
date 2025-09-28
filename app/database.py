@@ -26,6 +26,7 @@ class IDMSDatabase:
         cursor.execute("PRAGMA foreign_keys = ON")
         
         # Create all tables
+        self.create_users_table(cursor)
         self.create_documents_table(cursor)
         self.create_processing_logs_table(cursor)
         self.create_document_categories_table(cursor)
@@ -67,6 +68,71 @@ class IDMSDatabase:
             logger.error(f"Database migration failed: {e}")
         finally:
             conn.close()
+    
+    def create_users_table(self, cursor):
+        """Users table - stores user information and roles"""
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                email TEXT,
+                role TEXT NOT NULL DEFAULT 'user', -- 'admin', 'manager', 'analyst', 'viewer'
+                is_active BOOLEAN DEFAULT 1,
+                is_mfa_enabled BOOLEAN DEFAULT 0,
+                last_login DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER, -- ID of user who created this user
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        """)
+        
+        # Create default admin user if it doesn't exist
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+        if cursor.fetchone()[0] == 0:
+            # Hash the default password 'admin123'
+            import hashlib
+            password_hash = hashlib.sha256('admin123'.encode()).hexdigest()
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, full_name, email, role, created_by)
+                VALUES ('admin', ?, 'System Administrator', 'admin@idmsdemo.com', 'admin', 1)
+            """, (password_hash,))
+            logger.info("Default admin user created")
+        
+        # Update existing admin user email to admin@idmsdemo.com
+        cursor.execute("UPDATE users SET email = 'admin@idmsdemo.com' WHERE username = 'admin'")
+        logger.info("Updated admin user email to admin@idmsdemo.com")
+        
+        # Add MFA columns if they don't exist (for existing databases)
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN is_mfa_enabled BOOLEAN DEFAULT 0")
+            logger.info("Added is_mfa_enabled column to users table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN mfa_secret TEXT")
+            logger.info("Added mfa_secret column to users table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN mfa_setup_complete BOOLEAN DEFAULT 0")
+            logger.info("Added mfa_setup_complete column to users table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN has_changed_default_password BOOLEAN DEFAULT 0")
+            logger.info("Added has_changed_default_password column to users table")
+        except sqlite3.OperationalError:
+            # Column already exists, ignore the error
+            pass
     
     def create_documents_table(self, cursor):
         """Documents table - stores information about processed documents"""
@@ -721,6 +787,324 @@ class IDMSDatabase:
             logger.error(f"Error deleting GhostLayer document {document_id}: {e}")
             conn.close()
             return False
+
+    # User Management Methods
+    def authenticate_user(self, username_or_email: str, password: str) -> Optional[Dict]:
+        """Authenticate user with username/email and password"""
+        import hashlib
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        logger.info(f"Authenticating user: {username_or_email}")
+        logger.info(f"Password hash: {password_hash[:10]}...")
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT id, username, full_name, email, role, is_active, is_mfa_enabled, mfa_secret, mfa_setup_complete, has_changed_default_password, last_login
+                FROM users 
+                WHERE (username = ? OR email = ?) AND password_hash = ? AND is_active = 1
+            """, (username_or_email, username_or_email, password_hash))
+            
+            user = cursor.fetchone()
+            if user:
+                logger.info(f"User found: {user[1]} (ID: {user[0]})")
+                # Update last login
+                cursor.execute("""
+                    UPDATE users SET last_login = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, (user[0],))
+                conn.commit()
+                
+                return {
+                    'id': user[0],
+                    'username': user[1],
+                    'full_name': user[2],
+                    'email': user[3],
+                    'role': user[4],
+                    'is_active': user[5],
+                    'is_mfa_enabled': user[6],
+                    'mfa_secret': user[7],
+                    'mfa_setup_complete': user[8],
+                    'has_changed_default_password': user[9],
+                    'last_login': user[10]
+                }
+            else:
+                logger.warning(f"No user found for: {username_or_email}")
+                # Let's check what users exist
+                cursor.execute("SELECT username, email, is_active FROM users")
+                all_users = cursor.fetchall()
+                logger.info(f"Available users: {all_users}")
+            return None
+        except Exception as e:
+            logger.error(f"Error authenticating user {username}: {e}")
+            return None
+        finally:
+            conn.close()
+    
+    def create_user(self, username: str, password: str, full_name: str, 
+                   email: str = None, role: str = 'analyst', is_active: bool = True, 
+                   is_mfa_enabled: bool = False, created_by: int = None) -> bool:
+        """Create a new user"""
+        import hashlib
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        # Auto-append @idmsdemo.com if email doesn't contain @
+        if email and '@' not in email:
+            email = f"{email}@idmsdemo.com"
+        elif not email:
+            email = f"{username}@idmsdemo.com"
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                INSERT INTO users (username, password_hash, full_name, email, role, is_active, is_mfa_enabled, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (username, password_hash, full_name, email, role, is_active, is_mfa_enabled, created_by))
+            conn.commit()
+            logger.info(f"User {username} created successfully with email {email}")
+            return True
+        except sqlite3.IntegrityError:
+            logger.warning(f"Username {username} already exists")
+            return False
+        except Exception as e:
+            logger.error(f"Error creating user {username}: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_all_users(self) -> List[Dict]:
+        """Get all users"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT id, username, full_name, email, role, is_active, 
+                       is_mfa_enabled, mfa_setup_complete, has_changed_default_password, last_login, created_at, updated_at
+                FROM users 
+                ORDER BY created_at DESC
+            """)
+            
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'id': row[0],
+                    'username': row[1],
+                    'full_name': row[2],
+                    'email': row[3],
+                    'role': row[4],
+                    'is_active': row[5],
+                    'is_mfa_enabled': row[6],
+                    'mfa_setup_complete': row[7],
+                    'has_changed_default_password': row[8],
+                    'last_login': row[9],
+                    'created_at': row[10],
+                    'updated_at': row[11]
+                })
+            return users
+        except Exception as e:
+            logger.error(f"Error getting users: {e}")
+            return []
+        finally:
+            conn.close()
+    
+    def update_user(self, user_id: int, **kwargs) -> bool:
+        """Update user information"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Build update query dynamically
+            update_fields = []
+            values = []
+            
+            for field, value in kwargs.items():
+                if field == 'password':
+                    import hashlib
+                    value = hashlib.sha256(value.encode()).hexdigest()
+                    field = 'password_hash'
+                elif field in ['username', 'full_name', 'email', 'role', 'is_active', 'is_mfa_enabled']:
+                    pass
+                else:
+                    continue
+                
+                update_fields.append(f"{field} = ?")
+                values.append(value)
+            
+            if not update_fields:
+                return False
+            
+            update_fields.append("updated_at = CURRENT_TIMESTAMP")
+            values.append(user_id)
+            
+            cursor.execute(f"""
+                UPDATE users 
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            """, values)
+            
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error updating user {user_id}: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def delete_user(self, user_id: int) -> bool:
+        """Delete a user (soft delete by setting is_active = 0)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                UPDATE users 
+                SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND id != 1
+            """, (user_id,))  # Prevent deleting the default admin user
+            
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error deleting user {user_id}: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def setup_mfa(self, user_id: int, mfa_secret: str) -> bool:
+        """Setup MFA for a user"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                UPDATE users 
+                SET mfa_secret = ?, mfa_setup_complete = 1, is_mfa_enabled = 1 
+                WHERE id = ?
+            """, (mfa_secret, user_id))
+            conn.commit()
+            logger.info(f"MFA setup completed for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting up MFA for user {user_id}: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def disable_mfa(self, user_id: int) -> bool:
+        """Disable MFA for a user"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                UPDATE users 
+                SET is_mfa_enabled = 0, mfa_secret = NULL, mfa_setup_complete = 0 
+                WHERE id = ?
+            """, (user_id,))
+            conn.commit()
+            logger.info(f"MFA disabled for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error disabling MFA for user {user_id}: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_user_mfa_status(self, user_id: int) -> Optional[dict]:
+        """Get MFA status for a user"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT is_mfa_enabled, mfa_secret, mfa_setup_complete 
+                FROM users WHERE id = ?
+            """, (user_id,))
+            
+            result = cursor.fetchone()
+            if result:
+                return {
+                    'is_mfa_enabled': result[0],
+                    'mfa_secret': result[1],
+                    'mfa_setup_complete': result[2]
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error getting MFA status for user {user_id}: {e}")
+            return None
+        finally:
+            conn.close()
+    
+    def get_user_by_id(self, user_id: int) -> Optional[dict]:
+        """Get user by ID"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT id, username, full_name, email, role, is_active, is_mfa_enabled, 
+                       mfa_secret, mfa_setup_complete, has_changed_default_password, last_login, created_at
+                FROM users WHERE id = ?
+            """, (user_id,))
+            
+            user = cursor.fetchone()
+            if user:
+                return {
+                    'id': user[0],
+                    'username': user[1],
+                    'full_name': user[2],
+                    'email': user[3],
+                    'role': user[4],
+                    'is_active': user[5],
+                    'is_mfa_enabled': user[6],
+                    'mfa_secret': user[7],
+                    'mfa_setup_complete': user[8],
+                    'has_changed_default_password': user[9],
+                    'last_login': user[10],
+                    'created_at': user[11]
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user {user_id}: {e}")
+            return None
+        finally:
+            conn.close()
+    
+    def update_password_changed(self, user_id: int, new_password: str = None) -> bool:
+        """Mark that user has changed their default password and optionally update the password"""
+        import hashlib
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            if new_password:
+                # Update both password and flag
+                new_password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+                cursor.execute("""
+                    UPDATE users 
+                    SET password_hash = ?, has_changed_default_password = 1, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, (new_password_hash, user_id))
+            else:
+                # Only update the flag
+                cursor.execute("""
+                    UPDATE users 
+                    SET has_changed_default_password = 1, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, (user_id,))
+            conn.commit()
+            logger.info(f"Password change status updated for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating password change status for user {user_id}: {e}")
+            return False
+        finally:
+            conn.close()
 
 # Global database instance
 db = IDMSDatabase()

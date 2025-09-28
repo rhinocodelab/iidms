@@ -1,7 +1,9 @@
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Request
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Request, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
 import shutil
@@ -15,6 +17,7 @@ from typing import List, Dict
 import logging
 import asyncio
 from datetime import datetime
+from mfa_utils import MFAUtils
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -26,8 +29,26 @@ import configparser
 import warnings
 from google.cloud import documentai_v1 as documentai
 from google.cloud.documentai_v1 import Document
+import secrets
+import hashlib
+from typing import Optional
 
 app = FastAPI(title="IDMS - Intelligent Document Management System", description="AI-powered document classification and FileNet upload system")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Security
+security = HTTPBearer()
+
+# Session storage (in production, use Redis or database)
+user_sessions = {}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -975,13 +996,51 @@ async def upload_business_document(file: UploadFile = File(...)):
 # Frontend Routes
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Serve the main dashboard page"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    """Redirect to login page"""
+    return RedirectResponse(url="/login")
+
+@app.get("/test-auth", response_class=HTMLResponse)
+async def test_auth(request: Request):
+    """Test authentication endpoint"""
+    user = require_auth(request)
+    if user:
+        return HTMLResponse(f"<h1>Authenticated as: {user.get('username')} ({user.get('role')})</h1>")
+    else:
+        return HTMLResponse("<h1>Not authenticated</h1>")
+
+@app.get("/debug-sessions")
+async def debug_sessions():
+    """Debug sessions endpoint"""
+    return {
+        "total_sessions": len(user_sessions),
+        "sessions": list(user_sessions.keys())[:5]  # Show first 5 session keys
+    }
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    """Serve the main dashboard page (requires authentication)"""
+    logger.info(f"Dashboard accessed from: {request.headers.get('referer', 'direct')}")
+    user = require_auth(request)
+    if not user:
+        logger.warning("No user found, redirecting to login")
+        return RedirectResponse(url="/login")
+    
+    logger.info(f"User {user.get('username')} accessing dashboard")
+    
+    # Redirect admin users to admin console
+    if user.get("role") == "admin":
+        logger.info("Admin user, redirecting to admin console")
+        return RedirectResponse(url="/admin-console")
+    
+    return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request):
-    """Serve the upload page"""
-    return templates.TemplateResponse("upload.html", {"request": request})
+    """Serve the upload page (requires authentication)"""
+    user = require_auth(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("upload.html", {"request": request, "user": user})
 
 @app.post("/upload_files", response_class=HTMLResponse)
 async def upload_files_frontend(request: Request, files: List[UploadFile] = File(...)):
@@ -1078,23 +1137,43 @@ async def business_upload_frontend(request: Request, file: UploadFile = File(...
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    """Serve the admin dashboard page"""
-    return templates.TemplateResponse("admin.html", {"request": request})
+    """Serve the admin dashboard page (requires admin authentication)"""
+    user = require_auth(request)
+    if not user or user.get("role") != "admin":
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin.html", {"request": request, "user": user})
+
+@app.get("/admin-console", response_class=HTMLResponse)
+async def admin_console(request: Request):
+    """Serve the admin console page (requires admin authentication)"""
+    user = require_auth(request)
+    if not user or user.get("role") != "admin":
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin_console.html", {"request": request, "user": user})
 
 @app.get("/analytics", response_class=HTMLResponse)
 async def analytics_page(request: Request):
-    """Serve the analytics dashboard page"""
-    return templates.TemplateResponse("analytics.html", {"request": request})
+    """Serve the analytics dashboard page (requires authentication)"""
+    user = require_auth(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("analytics.html", {"request": request, "user": user})
 
 @app.get("/ghostlayer-ai", response_class=HTMLResponse)
 async def ghostlayer_page(request: Request):
-    """Serve the GhostLayer AI page"""
-    return templates.TemplateResponse("ghostlayer.html", {"request": request})
+    """Serve the GhostLayer AI page (requires authentication)"""
+    user = require_auth(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("ghostlayer.html", {"request": request, "user": user})
 
 @app.get("/ghostlayer-ai/view", response_class=HTMLResponse)
 async def ghostlayer_view_page(request: Request):
-    """Serve the GhostLayer AI document viewer page"""
-    return templates.TemplateResponse("ghostlayer_view.html", {"request": request})
+    """Serve the GhostLayer AI document viewer page (requires authentication)"""
+    user = require_auth(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("ghostlayer_view.html", {"request": request, "user": user})
 
 # OpenCV function to create black mask redaction
 def draw_text_coordinates(image, coordinates_data):
@@ -1663,3 +1742,567 @@ async def test_ghostlayer_config():
     except Exception as e:
         logger.error(f"Configuration test failed: {e}")
         raise HTTPException(status_code=500, detail=f"Configuration test failed: {str(e)}")
+
+# Authentication Functions
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current user from session token"""
+    token = credentials.credentials
+    if token not in user_sessions:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    
+    user_data = user_sessions[token]
+    return user_data
+
+def require_auth(request: Request):
+    """Check if user is authenticated"""
+    # Check for token in Authorization header
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        if token in user_sessions:
+            logger.info(f"User authenticated via Authorization header: {user_sessions[token]['username']}")
+            return user_sessions[token]
+    
+    # Check for token in cookies (for web requests)
+    token = request.cookies.get("session_token")
+    if token and token in user_sessions:
+        logger.info(f"User authenticated via cookie: {user_sessions[token]['username']}")
+        return user_sessions[token]
+    
+    # Session not found - this is normal after server restart
+    logger.info(f"No valid session found. Available sessions: {len(user_sessions)}")
+    return None
+
+# Authentication Routes
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Login page"""
+    logger.info(f"Login page accessed from: {request.headers.get('referer', 'direct')}")
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/api/auth/login")
+async def login(request: Request):
+    """User login endpoint"""
+    try:
+        data = await request.json()
+        username = data.get("username")
+        password = data.get("password")
+        
+        if not username or not password:
+            raise HTTPException(status_code=400, detail="Username and password are required")
+        
+        # Authenticate user
+        logger.info(f"Attempting authentication for username: {username}")
+        user = db.authenticate_user(username, password)
+        if not user:
+            logger.warning(f"Authentication failed for username: {username}")
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        logger.info(f"User {username} authenticated successfully")
+        
+        # Check if MFA is enabled and setup is complete
+        logger.info(f"MFA check for user {username}: is_mfa_enabled={user.get('is_mfa_enabled')}, mfa_setup_complete={user.get('mfa_setup_complete')}")
+        
+        if user.get('is_mfa_enabled') and user.get('mfa_setup_complete'):
+            # MFA is enabled and setup is complete - require MFA verification
+            logger.info(f"MFA verification required for user {username}")
+            return JSONResponse({
+                "message": "MFA verification required",
+                "mfa_required": True,
+                "user_id": user['id']
+            })
+        elif user.get('is_mfa_enabled') and not user.get('mfa_setup_complete'):
+            # MFA is enabled but setup is not complete - require MFA setup
+            logger.info(f"MFA setup required for user {username}")
+            return JSONResponse({
+                "message": "MFA setup required",
+                "mfa_setup_required": True,
+                "user_id": user['id']
+            })
+        else:
+            # No MFA required - check if password change is required (exclude admin)
+            if not user.get('has_changed_default_password') and user.get('role') != 'admin':
+                # Password change required for non-admin users
+                logger.info(f"Password change required for user {username}")
+                return JSONResponse({
+                    "message": "Password change required",
+                    "password_change_required": True,
+                    "user_id": user['id']
+                })
+            else:
+                # Normal login - proceed with session creation
+                # Generate session token
+                token = secrets.token_urlsafe(32)
+                user_sessions[token] = user
+                
+                logger.info(f"User {username} logged in successfully. Token: {token[:10]}...")
+                logger.info(f"Total active sessions: {len(user_sessions)}")
+                
+                # Create response with cookie
+                response = JSONResponse({
+                    "message": "Login successful",
+                    "token": token,
+                    "user": user
+                })
+                
+                # Set session cookie
+                response.set_cookie(
+                    key="session_token",
+                    value=token,
+                    httponly=True,
+                    secure=False,  # Set to True in production with HTTPS
+                    samesite="lax"
+                )
+                
+                return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
+
+@app.post("/api/auth/logout")
+async def logout(request: Request):
+    """User logout endpoint"""
+    try:
+        # Get token from request
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            if token in user_sessions:
+                del user_sessions[token]
+        
+        # Also check cookie
+        token = request.cookies.get("session_token")
+        if token and token in user_sessions:
+            del user_sessions[token]
+        
+        # Create response and clear cookie
+        response = JSONResponse({"message": "Logout successful"})
+        response.delete_cookie("session_token")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        raise HTTPException(status_code=500, detail="Logout failed")
+
+@app.get("/api/auth/me")
+async def get_current_user_info(request: Request):
+    """Get current user information"""
+    user = require_auth(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    return {"user": user}
+
+# MFA Routes
+@app.post("/api/auth/mfa/setup")
+async def setup_mfa(request: Request):
+    """Setup MFA for a user"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID required")
+        
+        # Generate MFA secret
+        mfa_secret = MFAUtils.generate_mfa_secret()
+        
+        # Generate QR code
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        qr_path = MFAUtils.generate_qr_code(user['email'], mfa_secret)
+        
+        # Extract just the filename from the full path
+        qr_filename = os.path.basename(qr_path)
+        
+        # Store the secret temporarily (will be saved when user confirms setup)
+        user_sessions[f"mfa_setup_{user_id}"] = {
+            'secret': mfa_secret,
+            'qr_path': qr_path,
+            'expires': datetime.now().timestamp() + 300  # 5 minutes
+        }
+        
+        return {
+            "message": "MFA setup initiated",
+            "qr_path": qr_filename,  # Return just the filename
+            "secret": mfa_secret  # For testing purposes
+        }
+        
+    except Exception as e:
+        logger.error(f"MFA setup error: {e}")
+        raise HTTPException(status_code=500, detail="MFA setup failed")
+
+@app.post("/api/auth/mfa/verify-setup")
+async def verify_mfa_setup(request: Request):
+    """Verify MFA setup with TOTP code"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        totp_code = data.get("totp_code")
+        
+        if not user_id or not totp_code:
+            raise HTTPException(status_code=400, detail="User ID and TOTP code required")
+        
+        # Get the temporary MFA setup data
+        setup_data = user_sessions.get(f"mfa_setup_{user_id}")
+        if not setup_data:
+            raise HTTPException(status_code=400, detail="MFA setup session expired")
+        
+        # Verify the TOTP code
+        if MFAUtils.verify_totp_code(setup_data['secret'], totp_code):
+            # Save the MFA secret to database
+            logger.info(f"Saving MFA setup for user {user_id}")
+            db.setup_mfa(user_id, setup_data['secret'])
+            
+            # Verify the save worked
+            user = db.get_user_by_id(user_id)
+            logger.info(f"MFA save verification for user {user_id}: is_mfa_enabled={user.get('is_mfa_enabled')}, mfa_setup_complete={user.get('mfa_setup_complete')}")
+            
+            # Clean up QR code
+            MFAUtils.cleanup_qr_code(setup_data['qr_path'])
+            
+            # Remove temporary session
+            del user_sessions[f"mfa_setup_{user_id}"]
+            
+            return {"message": "MFA setup completed successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Invalid TOTP code")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"MFA verification error: {e}")
+        raise HTTPException(status_code=500, detail="MFA verification failed")
+
+@app.post("/api/auth/mfa/verify")
+async def verify_mfa(request: Request):
+    """Verify MFA code during login"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        totp_code = data.get("totp_code")
+        
+        if not user_id or not totp_code:
+            raise HTTPException(status_code=400, detail="User ID and TOTP code required")
+        
+        # Get user's MFA secret
+        mfa_status = db.get_user_mfa_status(user_id)
+        if not mfa_status or not mfa_status.get('mfa_secret'):
+            raise HTTPException(status_code=400, detail="MFA not configured for user")
+        
+        # Verify the TOTP code
+        if MFAUtils.verify_totp_code(mfa_status['mfa_secret'], totp_code):
+            return {"message": "MFA verification successful"}
+        else:
+            raise HTTPException(status_code=400, detail="Invalid TOTP code")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"MFA verification error: {e}")
+        raise HTTPException(status_code=500, detail="MFA verification failed")
+
+@app.post("/api/auth/mfa/disable")
+async def disable_mfa(request: Request):
+    """Disable MFA for a user (Admin only)"""
+    try:
+        current_user = require_auth(request)
+        if not current_user or current_user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        data = await request.json()
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID required")
+        
+        if db.disable_mfa(user_id):
+            return {"message": "MFA disabled successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to disable MFA")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"MFA disable error: {e}")
+        raise HTTPException(status_code=500, detail="MFA disable failed")
+
+@app.post("/api/auth/mfa/complete-login")
+async def complete_mfa_login(request: Request):
+    """Complete login after MFA verification"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        totp_code = data.get("totp_code")
+        
+        if not user_id or not totp_code:
+            raise HTTPException(status_code=400, detail="User ID and TOTP code required")
+        
+        # Get user's MFA secret
+        mfa_status = db.get_user_mfa_status(user_id)
+        logger.info(f"MFA status for user {user_id}: {mfa_status}")
+        if not mfa_status or not mfa_status.get('mfa_secret'):
+            logger.warning(f"MFA not configured for user {user_id}: {mfa_status}")
+            raise HTTPException(status_code=400, detail="MFA not configured for user")
+        
+        # Verify the TOTP code
+        if MFAUtils.verify_totp_code(mfa_status['mfa_secret'], totp_code):
+            # Get user details
+            user = db.get_user_by_id(user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Generate session token
+            token = secrets.token_urlsafe(32)
+            user_sessions[token] = user
+            
+            logger.info(f"User {user['username']} completed MFA login successfully. Token: {token[:10]}...")
+            logger.info(f"Total active sessions: {len(user_sessions)}")
+            
+            # Create response with cookie
+            response = JSONResponse({
+                "message": "MFA login successful",
+                "token": token,
+                "user": user
+            })
+            
+            # Set session cookie
+            response.set_cookie(
+                key="session_token",
+                value=token,
+                httponly=True,
+                secure=False,  # Set to True in production with HTTPS
+                samesite="lax"
+            )
+            
+            return response
+        else:
+            raise HTTPException(status_code=400, detail="Invalid TOTP code")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"MFA complete login error: {e}")
+        raise HTTPException(status_code=500, detail="MFA login failed")
+
+@app.get("/api/auth/mfa/qr/{filename}")
+async def get_mfa_qr_code(filename: str):
+    """Serve MFA QR code images"""
+    try:
+        qr_path = f"temp/{filename}"
+        if os.path.exists(qr_path):
+            return FileResponse(qr_path, media_type="image/png")
+        else:
+            raise HTTPException(status_code=404, detail="QR code not found")
+    except Exception as e:
+        logger.error(f"Error serving QR code {filename}: {e}")
+        raise HTTPException(status_code=500, detail="Error serving QR code")
+
+@app.post("/api/auth/mfa/cleanup")
+async def cleanup_mfa_setup(request: Request):
+    """Clean up MFA setup (remove QR code and reset MFA state)"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        
+        logger.info(f"MFA cleanup called for user {user_id}")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID required")
+        
+        # Get user from database
+        user = db.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Clean up QR code file if it exists
+        email = user.get('email', '')
+        if email:
+            qr_filename = f"mfa_qr_{email.replace('@', '_').replace('.', '_')}.png"
+            qr_path = f"temp/{qr_filename}"
+            if os.path.exists(qr_path):
+                os.remove(qr_path)
+                logger.info(f"Cleaned up QR code: {qr_path}")
+        
+        # Reset MFA state in database
+        db.disable_mfa(user_id)
+        
+        return {"message": "MFA setup cleaned up successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"MFA cleanup error: {e}")
+        raise HTTPException(status_code=500, detail="MFA cleanup failed")
+
+@app.post("/api/auth/change-password-initial")
+async def change_password_initial(request: Request):
+    """Change user password for first-time login (no authentication required)"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        new_password = data.get("new_password")
+        
+        if not user_id or not new_password:
+            raise HTTPException(status_code=400, detail="User ID and new password required")
+        
+        if len(new_password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+        
+        # Update password and mark as changed
+        success = db.update_password_changed(user_id, new_password)
+        
+        if success:
+            return {"message": "Password changed successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to change password")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password change error: {e}")
+        raise HTTPException(status_code=500, detail="Password change failed")
+
+@app.post("/api/auth/change-password")
+async def change_password(request: Request):
+    """Change user password"""
+    try:
+        current_user = require_auth(request)
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        data = await request.json()
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+        
+        if not current_password or not new_password:
+            raise HTTPException(status_code=400, detail="Current and new password required")
+        
+        # Verify current password
+        import hashlib
+        import sqlite3
+        current_password_hash = hashlib.sha256(current_password.encode()).hexdigest()
+        
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                SELECT password_hash FROM users WHERE id = ?
+            """, (current_user['id'],))
+            
+            stored_hash = cursor.fetchone()
+            if not stored_hash or stored_hash[0] != current_password_hash:
+                raise HTTPException(status_code=400, detail="Current password is incorrect")
+            
+            # Update password
+            new_password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+            cursor.execute("""
+                UPDATE users 
+                SET password_hash = ?, has_changed_default_password = 1, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            """, (new_password_hash, current_user['id']))
+            conn.commit()
+            
+            return {"message": "Password changed successfully"}
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error changing password: {e}")
+            raise HTTPException(status_code=500, detail="Failed to change password")
+        finally:
+            conn.close()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Change password error: {e}")
+        raise HTTPException(status_code=500, detail="Change password failed")
+
+# User Management Routes (Admin only)
+@app.get("/api/users")
+async def get_users(request: Request):
+    """Get all users (Admin only)"""
+    current_user = require_auth(request)
+    if not current_user or current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = db.get_all_users()
+    # Filter out the current admin user from the list
+    filtered_users = [user for user in users if user.get("id") != current_user.get("id")]
+    return {"users": filtered_users}
+
+@app.post("/api/users")
+async def create_user(request: Request):
+    """Create new user (Admin only)"""
+    user = require_auth(request)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        data = await request.json()
+        success = db.create_user(
+            username=data.get("username"),
+            password=data.get("password"),
+            full_name=data.get("full_name"),
+            email=data.get("email"),
+            role=data.get("role", "analyst"),
+            is_active=data.get("is_active", True),
+            is_mfa_enabled=data.get("mfa_enabled", False),
+            created_by=user.get("id")
+        )
+        
+        if success:
+            return {"message": "User created successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to create user")
+            
+    except Exception as e:
+        logger.error(f"Create user error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create user")
+
+@app.put("/api/users/{user_id}")
+async def update_user(user_id: int, request: Request):
+    """Update user (Admin only)"""
+    user = require_auth(request)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        data = await request.json()
+        success = db.update_user(user_id, **data)
+        
+        if success:
+            return {"success": True, "message": "User updated successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update user")
+            
+    except Exception as e:
+        logger.error(f"Update user error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update user")
+
+@app.delete("/api/users/{user_id}")
+async def delete_user(user_id: int, request: Request):
+    """Delete user (Admin only)"""
+    user = require_auth(request)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        success = db.delete_user(user_id)
+        
+        if success:
+            return {"message": "User deleted successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to delete user")
+            
+    except Exception as e:
+        logger.error(f"Delete user error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete user")

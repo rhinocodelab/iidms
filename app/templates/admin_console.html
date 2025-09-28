@@ -1,0 +1,792 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - IDMS{% endblock %}
+
+{% block page_title %}User Management{% endblock %}
+{% block page_subtitle %}User Management and Access Role Control{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Admin Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center">
+                    <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                        <i class="fas fa-users text-xl text-blue-600"></i>
+                    </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Total Users</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="total-users">--</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="bg-green-100 p-3 rounded-lg mr-4">
+                        <i class="fas fa-user-check text-xl text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Active Users</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="active-users">--</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="flex items-center justify-end mb-2">
+                        <div class="bg-red-100 p-3 rounded-lg mr-4">
+                            <i class="fas fa-user-times text-xl text-red-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Inactive Users</p>
+                            <p class="text-2xl font-semibold text-gray-900" id="inactive-users">--</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="bg-orange-100 p-3 rounded-lg mr-4">
+                    <i class="fas fa-clock text-xl text-orange-600"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Recent Logins</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="recent-logins">--</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Section -->
+    <div class="bg-white shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-900">
+                    <i class="fas fa-users-cog mr-2"></i>User Management
+                </h2>
+                <button onclick="showCreateUserModal()" class="bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>Add User
+                </button>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MFA Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table-body" class="bg-white divide-y divide-gray-200">
+                    <!-- Users will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div id="createUserModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white shadow-xl max-w-lg w-full">
+            <div class="px-4 py-3 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Create New User</h3>
+            </div>
+            <form id="createUserForm" class="p-4">
+                <div class="flex gap-4">
+                    <!-- Left Panel - Basic Information -->
+                    <div class="flex-1 space-y-3">
+                        <h4 class="text-sm font-semibold text-gray-800 mb-3">Basic Information</h4>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                            <input type="text" id="newUsername" required
+                                   class="w-40 px-2 py-1.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                   pattern="[^@\s]+" 
+                                   title="Username cannot contain spaces or @ symbol"
+                                   oninput="validateUsername(this)">
+                            <div id="usernameError" class="text-red-500 text-xs mt-1 hidden"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <input type="text" id="newFullName" required
+                                   class="w-40 px-2 py-1.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <div class="relative">
+                                <input type="password" id="newPassword" required
+                                       class="w-40 px-2 py-1.5 pr-8 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                                <button type="button" onclick="toggleNewPasswordVisibility()" 
+                                        class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors">
+                                    <i class="fas fa-eye" id="newPasswordEyeIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Panel - Settings & Role -->
+                    <div class="flex-1 space-y-3">
+                        <h4 class="text-sm font-semibold text-gray-800 mb-3">Settings & Role</h4>
+                        <div>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="newIsActive" checked class="mr-2">
+                                <span class="text-sm font-medium text-gray-700">Active User</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="newMFA" class="mr-2">
+                                <span class="text-sm font-medium text-gray-700">Enable MFA</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                            <select id="newRole" class="w-40 px-2 py-1.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                                <option value="analyst">Analyst</option>
+                                <option value="manager">Manager</option>
+                                <option value="viewer">Viewer</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 mt-4">
+                    <button type="button" onclick="hideCreateUserModal()" 
+                            class="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                        Create User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+      <!-- Status Toggle Confirmation Modal -->
+      <div id="statusToggleModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+          <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white shadow-xl max-w-md w-full">
+                  <div class="px-6 py-4 border-b border-gray-200">
+                      <h3 class="text-lg font-semibold text-gray-900" id="statusToggleTitle">Confirm Status Change</h3>
+                  </div>
+                  <div class="p-6">
+                      <p class="text-gray-700 mb-4" id="statusToggleMessage">Are you sure you want to change this user's status?</p>
+                      <div class="flex justify-end space-x-3">
+                          <button type="button" onclick="hideStatusToggleModal()" 
+                                  class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                              Cancel
+                          </button>
+                          <button type="button" id="confirmStatusToggle" 
+                                  class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                              Confirm
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- MFA Disable Confirmation Modal -->
+      <div id="mfaDisableModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+          <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white shadow-xl max-w-md w-full">
+                  <div class="px-6 py-4 border-b border-gray-200">
+                      <h3 class="text-lg font-semibold text-gray-900">
+                          <i class="fas fa-shield-alt mr-2 text-orange-600"></i>Disable Multi-Factor Authentication
+                      </h3>
+                  </div>
+                  <div class="p-6">
+                      <div class="flex items-start mb-4">
+                          <div class="flex-shrink-0">
+                              <i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i>
+                          </div>
+                          <div class="ml-3">
+                              <h4 class="text-sm font-medium text-gray-900">Security Warning</h4>
+                              <p class="text-sm text-gray-700 mt-1">
+                                  Disabling MFA will remove the additional security layer for this user. 
+                                  They will only need their email and password to log in.
+                              </p>
+                          </div>
+                      </div>
+                      <p class="text-gray-700 mb-4" id="mfaDisableMessage">
+                          Are you sure you want to disable MFA for this user?
+                      </p>
+                      <div class="flex justify-end space-x-3">
+                          <button type="button" onclick="hideMfaDisableModal()" 
+                                  class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                              Cancel
+                          </button>
+                          <button type="button" id="confirmMfaDisable" 
+                                  class="px-4 py-2 bg-orange-600 text-white hover:bg-orange-700 transition-colors">
+                              <i class="fas fa-shield-alt mr-2"></i>Disable MFA
+                          </button>
+                      </div>
+                  </div>
+      </div>
+  </div>
+</div>
+
+      <!-- MFA Enable Confirmation Modal -->
+      <div id="mfaEnableModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+          <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white shadow-xl max-w-md w-full">
+                  <div class="px-6 py-4 border-b border-gray-200">
+                      <h3 class="text-lg font-semibold text-gray-900">
+                          <i class="fas fa-shield-alt mr-2 text-green-600"></i>Enable Multi-Factor Authentication
+                      </h3>
+                  </div>
+                  <div class="p-6">
+                      <div class="flex items-start mb-4">
+                          <div class="flex-shrink-0">
+                              <i class="fas fa-info-circle text-green-500 text-xl"></i>
+                          </div>
+                          <div class="ml-3">
+                              <h4 class="text-sm font-medium text-gray-900">Security Enhancement</h4>
+                              <p class="text-sm text-gray-700 mt-1">
+                                  Enabling MFA will add an additional security layer for this user. 
+                                  They will need to complete MFA setup on their next login.
+                              </p>
+                          </div>
+                      </div>
+                      <p class="text-gray-700 mb-4" id="mfaEnableMessage">
+                          Are you sure you want to enable MFA for this user? They will need to complete MFA setup on their next login.
+                      </p>
+                      <div class="flex justify-end space-x-3">
+                          <button type="button" onclick="hideMfaEnableModal()" 
+                                  class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                              Cancel
+                          </button>
+                          <button type="button" id="confirmMfaEnable" 
+                                  class="px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors">
+                              <i class="fas fa-shield-alt mr-2"></i>Enable MFA
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- User Creation Progress Modal -->
+      <div id="userCreationProgressModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+          <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white shadow-xl max-w-md w-full">
+                  <div class="px-6 py-4 border-b border-gray-200">
+                      <h3 class="text-lg font-semibold text-gray-900">
+                          <i class="fas fa-user-plus mr-2 text-blue-600"></i>Creating New User
+                      </h3>
+                  </div>
+                  <div class="p-6">
+                      <div class="text-center">
+                          <div class="mb-4">
+                              <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                                  <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+                              </div>
+                              <p class="text-gray-700 mb-2">Please wait while we create the new user...</p>
+                              <div class="w-full bg-gray-200 rounded-full h-2">
+                                  <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                              </div>
+                              <p id="progressText" class="text-sm text-gray-500 mt-2">Initializing...</p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- Toast Notification Container -->
+      <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+    loadAdminStats();
+});
+
+async function loadUsers() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            renderUsersTable(data.users);
+        } else {
+            console.error('Failed to load users');
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+function renderUsersTable(users) {
+    const tbody = document.getElementById('users-table-body');
+    tbody.innerHTML = '';
+    
+    users.forEach(user => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">${user.full_name}</div>
+                <div class="text-sm text-gray-500">${user.username}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}">
+                    ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                    ${user.is_active ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                ${getMfaStatus(user)}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                ${new Date(user.created_at).toLocaleDateString()}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <button onclick="editUser(${user.id})" class="text-blue-600 hover:text-blue-900 mr-3" title="Edit User">
+                    <i class="fas fa-edit"></i>
+                </button>
+                ${user.is_active ? 
+                    `<button onclick="toggleUserStatus(${user.id}, false)" class="text-red-600 hover:text-red-900 mr-3" title="Deactivate User">
+                        <i class="fas fa-user-times"></i>
+                    </button>` :
+                    `<button onclick="toggleUserStatus(${user.id}, true)" class="text-green-600 hover:text-green-900 mr-3" title="Activate User">
+                        <i class="fas fa-user-check"></i>
+                    </button>`
+                }
+                ${user.is_mfa_enabled ? 
+                    `<button onclick="disableMfa(${user.id})" class="text-orange-600 hover:text-orange-900 mr-3" title="Disable MFA">
+                        <i class="fas fa-shield-alt"></i>
+                    </button>` : 
+                    `<button onclick="enableMfa(${user.id})" class="text-green-600 hover:text-green-900 mr-3" title="Enable MFA">
+                        <i class="fas fa-shield-alt"></i>
+                    </button>`
+                }
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getRoleColor(role) {
+    const colors = {
+        'admin': 'bg-red-100 text-red-800',
+        'manager': 'bg-purple-100 text-purple-800',
+        'analyst': 'bg-blue-100 text-blue-800',
+        'viewer': 'bg-gray-100 text-gray-800'
+    };
+    return colors[role] || 'bg-gray-100 text-gray-800';
+}
+
+function getMfaStatus(user) {
+    if (!user.is_mfa_enabled) {
+        return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><i class="fas fa-shield mr-1"></i>Disabled</span>';
+    } else if (user.is_mfa_enabled && user.mfa_setup_complete) {
+        return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fas fa-shield-alt mr-1"></i>Enabled</span>';
+    } else if (user.is_mfa_enabled && !user.mfa_setup_complete) {
+        return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><i class="fas fa-exclamation-triangle mr-1"></i>Setup Required</span>';
+    } else {
+        return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><i class="fas fa-shield mr-1"></i>Unknown</span>';
+    }
+}
+
+async function loadAdminStats() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const users = data.users || [];
+            
+            // Calculate stats
+            const totalUsers = users.length;
+            const activeUsers = users.filter(user => user.is_active).length;
+            const inactiveUsers = users.filter(user => !user.is_active).length;
+            const recentLogins = users.filter(user => {
+                if (!user.last_login) return false;
+                const loginDate = new Date(user.last_login);
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                return loginDate > weekAgo;
+            }).length;
+            
+            // Update the cards
+            document.getElementById('total-users').textContent = totalUsers;
+            document.getElementById('active-users').textContent = activeUsers;
+            document.getElementById('inactive-users').textContent = inactiveUsers;
+            document.getElementById('recent-logins').textContent = recentLogins;
+        } else {
+            console.error('Failed to load user stats');
+        }
+    } catch (error) {
+        console.error('Error loading admin stats:', error);
+    }
+}
+
+function showCreateUserModal() {
+    document.getElementById('createUserModal').classList.remove('hidden');
+}
+
+function hideCreateUserModal() {
+    document.getElementById('createUserModal').classList.add('hidden');
+    document.getElementById('createUserForm').reset();
+}
+
+document.getElementById('createUserForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('newUsername').value;
+    
+    // Validate username before submission
+    if (!validateUsername(document.getElementById('newUsername'))) {
+        return; // Stop submission if validation fails
+    }
+    
+    const formData = {
+        username: username,
+        full_name: document.getElementById('newFullName').value,
+        password: document.getElementById('newPassword').value,
+        role: document.getElementById('newRole').value,
+        is_active: document.getElementById('newIsActive').checked,
+        mfa_enabled: document.getElementById('newMFA').checked
+    };
+    
+    // Show progress modal
+    showUserCreationProgress();
+    
+    try {
+        // Simulate progress steps
+        updateProgress(20, 'Validating user data...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        updateProgress(40, 'Creating user account...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        updateProgress(60, 'Setting up permissions...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        updateProgress(80, 'Finalizing user creation...');
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/users', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        updateProgress(100, 'User created successfully!');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        if (response.ok) {
+            hideUserCreationProgress();
+            hideCreateUserModal();
+            loadUsers();
+            loadAdminStats();
+            showToast('User created successfully!', 'success');
+        } else {
+            const error = await response.json();
+            hideUserCreationProgress();
+            showToast('Error: ' + error.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error creating user:', error);
+        hideUserCreationProgress();
+        showToast('Error creating user', 'error');
+    }
+});
+
+let currentUserId = null;
+let currentStatus = null;
+
+function toggleUserStatus(userId, newStatus) {
+    currentUserId = userId;
+    currentStatus = newStatus;
+    
+    const modal = document.getElementById('statusToggleModal');
+    const title = document.getElementById('statusToggleTitle');
+    const message = document.getElementById('statusToggleMessage');
+    
+    if (newStatus) {
+        title.textContent = 'Activate User';
+        message.textContent = 'Are you sure you want to activate this user? They will be able to log in and access the system.';
+    } else {
+        title.textContent = 'Deactivate User';
+        message.textContent = 'Are you sure you want to deactivate this user? They will not be able to log in to the system.';
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function hideStatusToggleModal() {
+    document.getElementById('statusToggleModal').classList.add('hidden');
+    currentUserId = null;
+    currentStatus = null;
+}
+
+async function confirmStatusToggle() {
+    if (!currentUserId || currentStatus === null) return;
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/users/${currentUserId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                is_active: currentStatus
+            })
+        });
+        
+        if (response.ok) {
+            loadUsers();
+            loadAdminStats();
+            hideStatusToggleModal();
+            alert(currentStatus ? 'User activated successfully!' : 'User deactivated successfully!');
+        } else {
+            alert('Error updating user status');
+        }
+    } catch (error) {
+        console.error('Error updating user status:', error);
+        alert('Error updating user status');
+    }
+}
+
+// Add event listeners for confirm buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('confirmStatusToggle').addEventListener('click', confirmStatusToggle);
+    document.getElementById('confirmMfaDisable').addEventListener('click', confirmMfaDisable);
+    document.getElementById('confirmMfaEnable').addEventListener('click', confirmMfaEnable);
+});
+
+let currentMfaUserId = null;
+
+function disableMfa(userId) {
+    currentMfaUserId = userId;
+    document.getElementById('mfaDisableModal').classList.remove('hidden');
+}
+
+function enableMfa(userId) {
+    currentMfaUserId = userId;
+    document.getElementById('mfaEnableModal').classList.remove('hidden');
+}
+
+function hideMfaDisableModal() {
+    document.getElementById('mfaDisableModal').classList.add('hidden');
+    currentMfaUserId = null;
+}
+
+function hideMfaEnableModal() {
+    document.getElementById('mfaEnableModal').classList.add('hidden');
+    currentMfaUserId = null;
+}
+
+function confirmMfaDisable() {
+    if (!currentMfaUserId) return;
+    
+    // Call MFA disable API
+    fetch('/api/auth/mfa/disable', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            user_id: currentMfaUserId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            hideMfaDisableModal();
+            loadUsers(); // Refresh the user list
+            loadAdminStats(); // Refresh stats
+            // Show success message (you can replace this with a toast notification)
+            alert('MFA disabled successfully!');
+        } else {
+            alert('Error disabling MFA');
+        }
+    })
+    .catch(error => {
+        console.error('Error disabling MFA:', error);
+        alert('Error disabling MFA');
+    });
+}
+
+function confirmMfaEnable() {
+    if (!currentMfaUserId) return;
+    
+    // Call user update API to enable MFA
+    fetch(`/api/users/${currentMfaUserId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            is_mfa_enabled: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            hideMfaEnableModal();
+            loadUsers(); // Refresh the user list
+            loadAdminStats(); // Refresh stats
+            showToast('MFA enabled successfully!', 'success');
+        } else {
+            showToast('Error enabling MFA: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error enabling MFA:', error);
+        showToast('Error enabling MFA', 'error');
+    });
+}
+
+function editUser(userId) {
+    // This would open an edit modal
+    alert('Edit user functionality coming soon!');
+}
+
+// Password visibility toggle for Create New User modal
+function toggleNewPasswordVisibility() {
+    const passwordInput = document.getElementById('newPassword');
+    const eyeIcon = document.getElementById('newPasswordEyeIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye');
+    }
+}
+
+// Username validation function
+function validateUsername(input) {
+    const username = input.value;
+    const errorDiv = document.getElementById('usernameError');
+    const submitButton = document.getElementById('createUserBtn');
+    
+    // Check for spaces or @ symbol
+    if (username.includes(' ') || username.includes('@')) {
+        input.classList.add('border-red-500');
+        input.classList.remove('border-gray-300');
+        errorDiv.textContent = 'Username cannot contain spaces or @ symbol';
+        errorDiv.classList.remove('hidden');
+        if (submitButton) submitButton.disabled = true;
+        return false;
+    } else {
+        input.classList.remove('border-red-500');
+        input.classList.add('border-gray-300');
+        errorDiv.classList.add('hidden');
+        if (submitButton) submitButton.disabled = false;
+        return true;
+    }
+}
+
+// Progress modal functions
+function showUserCreationProgress() {
+    document.getElementById('userCreationProgressModal').classList.remove('hidden');
+    updateProgress(0, 'Initializing...');
+}
+
+function hideUserCreationProgress() {
+    document.getElementById('userCreationProgressModal').classList.add('hidden');
+    updateProgress(0, 'Initializing...');
+}
+
+function updateProgress(percentage, text) {
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    if (progressBar) progressBar.style.width = percentage + '%';
+    if (progressText) progressText.textContent = text;
+}
+
+// Toast notification functions
+function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toastId = 'toast-' + Date.now();
+    
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = `transform transition-all duration-300 translate-x-full opacity-0`;
+    
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    
+    toast.innerHTML = `
+        <div class="flex items-center p-4 ${bgColor} text-white rounded-lg shadow-lg max-w-sm">
+            <i class="fas ${icon} mr-3"></i>
+            <span class="flex-1">${message}</span>
+            <button onclick="hideToast('${toastId}')" class="ml-3 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full', 'opacity-0');
+        toast.classList.add('translate-x-0', 'opacity-100');
+    }, 100);
+    
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+        hideToast(toastId);
+    }, 5000);
+}
+
+function hideToast(toastId) {
+    const toast = document.getElementById(toastId);
+    if (toast) {
+        toast.classList.remove('translate-x-0', 'opacity-100');
+        toast.classList.add('translate-x-full', 'opacity-0');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }
+}
+</script>
+{% endblock %}

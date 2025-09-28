@@ -20,9 +20,9 @@
     <!-- Sidebar -->
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <div id="sidebar" class="w-64 bg-gray-900 text-white shadow-lg transition-transform duration-300 ease-in-out flex-shrink-0">
+        <div id="sidebar" class="w-64 bg-gray-900 text-white shadow-lg transition-transform duration-300 ease-in-out flex-shrink-0 flex flex-col">
             <!-- Logo Section -->
-            <div class="p-6 border-b border-gray-700">
+            <div class="p-6 border-b border-gray-700 flex-shrink-0">
                 <div class="flex items-center space-x-3">
                     <div class="flex-shrink-0">
                         <img src="{{ url_for('static', path='images/cybercorp_logo.png') }}" alt="CyberCorp Logo" class="h-16 w-16 object-contain">
@@ -34,13 +34,22 @@
                 </div>
             </div>
 
-            <!-- Navigation Menu -->
-            <nav class="mt-6">
+            <!-- Navigation Menu - Scrollable -->
+            <nav class="mt-6 flex-1 overflow-y-auto">
                 <div class="px-3">
                     <a href="/" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white mb-2 transition-colors duration-200 {% if request.url.path == '/' %}bg-gray-800 text-white{% endif %}">
                         <i class="fas fa-home mr-3"></i>
                         <span>Dashboard</span>
                     </a>
+                    
+                    <!-- User Management - Admin Only -->
+                    <div id="user-management-menu" class="hidden">
+                        <a href="/admin-console" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white mb-2 transition-colors duration-200 {% if request.url.path == '/admin-console' %}bg-gray-800 text-white{% endif %}">
+                            <i class="fas fa-users mr-3"></i>
+                            <span>User Management</span>
+                        </a>
+                    </div>
+                    
                     <!-- Upload Documents Menu with Sub-menus -->
                     <div class="mb-2">
                         <button onclick="toggleUploadMenu()" class="flex items-center justify-between w-full px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors duration-200 {% if request.url.path == '/upload' %}bg-gray-800 text-white{% endif %}">
@@ -107,7 +116,7 @@
             </nav>
 
             <!-- Footer -->
-            <div class="absolute bottom-0 w-64 p-4 border-t border-gray-700">
+            <div class="p-4 border-t border-gray-700 flex-shrink-0">
                 <div class="text-xs text-gray-400 text-center">
                     <p>&copy; 2025 CYBERCORP IDMS</p>
                     <p>Powered by IBM WatsonX AI</p>
@@ -131,8 +140,44 @@
                         <p class="text-sm text-gray-600 mt-1">{% block page_subtitle %}Welcome to IDMS{% endblock %}</p>
                     </div>
 
+                    <!-- User Info and Logout -->
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <p class="text-sm font-medium text-gray-900" id="user-name">Loading...</p>
+                            <p class="text-xs text-gray-500" id="user-role">Loading...</p>
+                        </div>
+                        <button onclick="logout()" class="bg-red-600 text-white px-3 py-2 hover:bg-red-700 transition-colors text-sm">
+                            <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                        </button>
+                    </div>
+
                 </div>
             </header>
+
+            <!-- Password Change Notification -->
+            <div id="passwordChangeNotification" class="hidden bg-yellow-50 border-l-4 border-yellow-400 p-4 mx-6 mt-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <strong>Security Notice:</strong> You are using a default password. Please change your password for security reasons.
+                            <button onclick="showPasswordChangeModal()" class="ml-2 text-yellow-800 underline hover:text-yellow-900">
+                                Change Password Now
+                            </button>
+                        </p>
+                    </div>
+                    <div class="ml-auto pl-3">
+                        <div class="-mx-1.5 -my-1.5">
+                            <button onclick="hidePasswordChangeNotification()" class="inline-flex bg-yellow-50 rounded-md p-1.5 text-yellow-500 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-yellow-50 focus:ring-yellow-600">
+                                <span class="sr-only">Dismiss</span>
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Main Content -->
             <main class="flex-1 overflow-y-auto bg-gray-50">
@@ -145,6 +190,63 @@
 
     <!-- Mobile Sidebar Overlay -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden"></div>
+
+    <!-- Password Change Modal -->
+    <div id="passwordChangeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white shadow-xl max-w-md w-full">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-key mr-2 text-blue-600"></i>Change Password
+                    </h3>
+                </div>
+                <form id="passwordChangeForm" class="p-6">
+                    <div class="mb-4">
+                        <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-lock mr-2"></i>Current Password
+                        </label>
+                        <input type="password" id="currentPassword" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter your current password">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-key mr-2"></i>New Password
+                        </label>
+                        <input type="password" id="newPassword" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter your new password">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-check mr-2"></i>Confirm New Password
+                        </label>
+                        <input type="password" id="confirmPassword" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Confirm your new password">
+                    </div>
+                    
+                    <div id="passwordChangeError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span id="passwordChangeErrorText"></span>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="hidePasswordChangeModal()" 
+                                class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-save mr-2"></i>Change Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- JavaScript -->
     <script src="{{ url_for('static', path='js/main.js') }}"></script>
@@ -250,6 +352,195 @@
         // Initial status check and periodic updates
         updateSystemStatus();
         setInterval(updateSystemStatus, 30000); // Update every 30 seconds
+
+        // Authentication functions
+        function checkAuth() {
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            
+            
+            if (!user || !token) {
+                window.location.href = '/login';
+                return false;
+            }
+            
+            try {
+                const userData = JSON.parse(user);
+                document.getElementById('user-name').textContent = userData.full_name || userData.username;
+                document.getElementById('user-role').textContent = userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
+                
+                // Show/hide User Management menu based on role
+                const userManagementMenu = document.getElementById('user-management-menu');
+                if (userData.role === 'admin') {
+                    userManagementMenu.classList.remove('hidden');
+                } else {
+                    userManagementMenu.classList.add('hidden');
+                }
+                
+                return true;
+            } catch (e) {
+                console.error('Error parsing user data:', e);
+                window.location.href = '/login';
+                return false;
+            }
+        }
+
+        async function logout() {
+            try {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+            } finally {
+                // Clear local storage and redirect
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            }
+        }
+
+        // Check authentication on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // For web requests, we rely on server-side authentication
+            // The server will redirect to login if not authenticated
+            const user = localStorage.getItem('user');
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    document.getElementById('user-name').textContent = userData.full_name || userData.username;
+                    document.getElementById('user-role').textContent = userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
+                    
+                    // Show/hide User Management menu based on role
+                    const userManagementMenu = document.getElementById('user-management-menu');
+                    if (userData.role === 'admin') {
+                        userManagementMenu.classList.remove('hidden');
+                    } else {
+                        userManagementMenu.classList.add('hidden');
+                    }
+                    
+                    // Show password change notification if user hasn't changed default password
+                    if (userData.has_changed_default_password === false) {
+                        showPasswordChangeNotification();
+                    }
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                }
+            }
+        });
+
+        // Add token to all fetch requests
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            const token = localStorage.getItem('token');
+            if (token) {
+                options.headers = {
+                    ...options.headers,
+                    'Authorization': `Bearer ${token}`
+                };
+            }
+            return originalFetch(url, options);
+        };
+        
+        // Password change notification functions
+        function showPasswordChangeNotification() {
+            document.getElementById('passwordChangeNotification').classList.remove('hidden');
+        }
+
+        function hidePasswordChangeNotification() {
+            document.getElementById('passwordChangeNotification').classList.add('hidden');
+        }
+
+        function showPasswordChangeModal() {
+            document.getElementById('passwordChangeModal').classList.remove('hidden');
+        }
+
+        function hidePasswordChangeModal() {
+            document.getElementById('passwordChangeModal').classList.add('hidden');
+            // Clear form
+            document.getElementById('passwordChangeForm').reset();
+            hidePasswordChangeError();
+        }
+
+        function showPasswordChangeError(message) {
+            const errorDiv = document.getElementById('passwordChangeError');
+            const errorText = document.getElementById('passwordChangeErrorText');
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hidePasswordChangeError() {
+            document.getElementById('passwordChangeError').classList.add('hidden');
+        }
+
+        async function handlePasswordChange(e) {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // Validate passwords match
+            if (newPassword !== confirmPassword) {
+                showPasswordChangeError('New passwords do not match');
+                return;
+            }
+            
+            // Validate password length
+            if (newPassword.length < 6) {
+                showPasswordChangeError('New password must be at least 6 characters long');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Password changed successfully
+                    hidePasswordChangeModal();
+                    hidePasswordChangeNotification();
+                    
+                    // Update user data in localStorage
+                    const user = JSON.parse(localStorage.getItem('user'));
+                    user.has_changed_default_password = true;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    alert('Password changed successfully!');
+                } else {
+                    showPasswordChangeError(data.message || 'Failed to change password');
+                }
+            } catch (error) {
+                console.error('Password change error:', error);
+                showPasswordChangeError('Network error. Please try again.');
+            }
+        }
+        
+        // Add form event listener
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordChangeForm = document.getElementById('passwordChangeForm');
+            if (passwordChangeForm) {
+                passwordChangeForm.addEventListener('submit', handlePasswordChange);
+            }
+        });
     </script>
     {% block extra_scripts %}{% endblock %}
 </body>

@@ -11,3 +11,5 @@ jinja2
 reportlab
 google-cloud-documentai
 opencv-python
+pyotp
+qrcode[pil]

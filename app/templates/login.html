@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - IDMS</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body {
+            background: #f9fafb;
+            min-height: 100vh;
+        }
+        .login-container {
+            background: white;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .left-panel {
+            background: #111827; /* bg-gray-900 */
+            color: white;
+        }
+        .right-panel {
+            background: white;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+    <div class="login-container w-full max-w-3xl mx-4 flex">
+        <!-- Left Panel - Logo and Branding -->
+        <div class="left-panel flex-1 p-8 flex flex-col justify-between items-center text-center">
+            <div class="mb-8">
+                <img src="{{ url_for('static', path='images/cybercorp_logo.png') }}" alt="CyberCorp Logo" class="h-24 w-24 object-contain mx-auto mb-6">
+                <h1 class="text-4xl font-bold mb-4">IDMS</h1>
+                <p class="text-xl text-white/90 whitespace-nowrap">Intelligent Document Management System</p>
+            </div>
+            
+            <!-- Footer -->
+            <div class="text-center text-white/70 text-xs">
+                <p>&copy; 2025 CYBERCORP IDMS</p>
+                <p>Powered by IBM WatsonX AI</p>
+            </div>
+        </div>
+
+        <!-- Right Panel - Login Form -->
+        <div class="right-panel flex-1 p-8 flex flex-col justify-center">
+            <div class="w-full max-w-sm mx-auto">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+                    <p class="text-gray-600">Sign in to your account</p>
+                </div>
+
+                <!-- Login Form -->
+                <form id="loginForm" class="space-y-6">
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-envelope mr-2"></i>Email Address
+                        </label>
+                        <input type="email" id="email" name="email" required
+                               class="w-full px-4 py-3 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                               placeholder="Enter your email address">
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-lock mr-2"></i>Password
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="password" name="password" required
+                                   class="w-full px-4 py-3 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
+                                   placeholder="Enter your password">
+                            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors">
+                                <i class="fas fa-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span id="errorText"></span>
+                    </div>
+
+                    <!-- Login Button -->
+                    <button type="submit" id="loginButton"
+                            class="w-full bg-blue-600 text-white py-3 px-4 font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 flex items-center justify-center">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        <span id="loginButtonText">Sign In</span>
+                        <i id="loginSpinner" class="fas fa-spinner fa-spin ml-2 hidden"></i>
+                    </button>
+                </form>
+            </div>
+          </div>
+      </div>
+
+      <!-- MFA Setup Modal -->
+      <div id="mfaSetupModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+          <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white shadow-xl max-w-md w-full">
+                  <div class="px-6 py-4 border-b border-gray-200">
+                      <h3 class="text-lg font-semibold text-gray-900">Setup Multi-Factor Authentication</h3>
+                  </div>
+                  <div class="p-4">
+                      <div class="text-center mb-3">
+                          <p class="text-gray-700 mb-3 text-sm">Scan this QR code with your Google Authenticator app:</p>
+                          <div id="qrCodeContainer" class="flex justify-center mb-3">
+                              <!-- QR Code will be inserted here -->
+                          </div>
+                          <p class="text-xs text-gray-600">After scanning, enter the 6-digit code from your authenticator app:</p>
+                      </div>
+                      
+                      <div class="mb-4">
+                          <label for="mfaSetupCode" class="block text-sm font-medium text-gray-700 mb-1">
+                              <i class="fas fa-key mr-2"></i>6-Digit Code
+                          </label>
+                          <input type="text" id="mfaSetupCode" maxlength="6" 
+                                 class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-center text-lg tracking-widest"
+                                 placeholder="123456">
+                      </div>
+                      
+                      <div id="mfaSetupError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
+                          <i class="fas fa-exclamation-triangle mr-2"></i>
+                          <span id="mfaSetupErrorText"></span>
+                      </div>
+                      
+                      <div class="flex justify-end space-x-3">
+                          <button type="button" onclick="cancelMfaSetup()" 
+                                  class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                              Cancel
+                          </button>
+                          <button type="button" id="verifyMfaSetup" 
+                                  class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                              Verify & Complete Setup
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- MFA Verification Modal -->
+      <div id="mfaVerifyModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+          <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white shadow-xl max-w-md w-full">
+                  <div class="px-6 py-4 border-b border-gray-200">
+                      <h3 class="text-lg font-semibold text-gray-900">Multi-Factor Authentication</h3>
+                  </div>
+                  <div class="p-6">
+                      <div class="text-center mb-4">
+                          <i class="fas fa-shield-alt text-4xl text-blue-600 mb-4"></i>
+                          <p class="text-gray-700 mb-4">Enter the 6-digit code from your authenticator app:</p>
+                      </div>
+                      
+                      <div class="mb-4">
+                          <label for="mfaVerifyCode" class="block text-sm font-medium text-gray-700 mb-1">
+                              <i class="fas fa-key mr-2"></i>6-Digit Code
+                          </label>
+                          <input type="text" id="mfaVerifyCode" maxlength="6" 
+                                 class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-center text-lg tracking-widest"
+                                 placeholder="123456">
+                      </div>
+                      
+                      <div id="mfaVerifyError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
+                          <i class="fas fa-exclamation-triangle mr-2"></i>
+                          <span id="mfaVerifyErrorText"></span>
+                      </div>
+                      
+                      <div class="flex justify-end space-x-3">
+                          <button type="button" onclick="hideMfaVerifyModal()" 
+                                  class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                              Cancel
+                          </button>
+                          <button type="button" id="verifyMfaCode" 
+                                  class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                              Verify Code
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- Password Change Modal -->
+      <div id="passwordChangeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+          <div class="flex items-center justify-center min-h-screen p-4">
+              <div class="bg-white shadow-xl max-w-md w-full">
+                  <div class="px-6 py-4 border-b border-gray-200">
+                      <h3 class="text-lg font-semibold text-gray-900">
+                          <i class="fas fa-key mr-2 text-orange-600"></i>Change Default Password
+                      </h3>
+                  </div>
+                  <div class="p-6">
+                      <div class="flex items-start mb-4">
+                          <div class="flex-shrink-0">
+                              <i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i>
+                          </div>
+                          <div class="ml-3">
+                              <h4 class="text-sm font-medium text-gray-900">Security Requirement</h4>
+                              <p class="text-sm text-gray-700 mt-1">
+                                  For security reasons, you must change your default password before accessing the system.
+                              </p>
+                          </div>
+                      </div>
+                      
+                      <div class="mb-4">
+                          <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                              <i class="fas fa-lock mr-2"></i>New Password
+                          </label>
+                          <div class="relative">
+                              <input type="password" id="newPassword" 
+                                     class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                     placeholder="Enter new password">
+                              <button type="button" id="toggleNewPassword" onclick="toggleNewPasswordVisibility()" 
+                                      class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                  <i id="newPasswordEyeIcon" class="fas fa-eye text-gray-400"></i>
+                              </button>
+                          </div>
+                      </div>
+                      
+                      <div class="mb-4">
+                          <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                              <i class="fas fa-lock mr-2"></i>Confirm New Password
+                          </label>
+                          <div class="relative">
+                              <input type="password" id="confirmPassword" 
+                                     class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                     placeholder="Confirm new password">
+                              <button type="button" id="toggleConfirmPassword" onclick="toggleConfirmPasswordVisibility()" 
+                                      class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                  <i id="confirmPasswordEyeIcon" class="fas fa-eye text-gray-400"></i>
+                              </button>
+                          </div>
+                      </div>
+                      
+                      <div id="passwordChangeError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
+                          <i class="fas fa-exclamation-triangle mr-2"></i>
+                          <span id="passwordChangeErrorText"></span>
+                      </div>
+                      
+                      <div class="flex justify-end space-x-3">
+                          <button type="button" onclick="hidePasswordChangeModal()" 
+                                  class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                              Cancel
+                          </button>
+                          <button type="button" id="changePassword" 
+                                  class="px-4 py-2 bg-orange-600 text-white hover:bg-orange-700 transition-colors">
+                              <i class="fas fa-key mr-2"></i>Change Password
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.getElementById('loginForm');
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const loginButton = document.getElementById('loginButton');
+            const loginButtonText = document.getElementById('loginButtonText');
+            const loginSpinner = document.getElementById('loginSpinner');
+
+            // Toggle password visibility
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                eyeIcon.classList.toggle('fa-eye');
+                eyeIcon.classList.toggle('fa-eye-slash');
+            });
+
+            // Handle form submission
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                if (!email || !password) {
+                    showError('Please enter both email and password');
+                    return;
+                }
+
+                // Show loading state
+                setLoadingState(true);
+
+                try {
+                    const response = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            username: email,
+                            password: password
+                        })
+                    });
+
+                    const data = await response.json();
+                    console.log('Login response:', data);
+                    console.log('Response status:', response.status);
+                    console.log('MFA required:', data.mfa_required);
+                    console.log('MFA setup required:', data.mfa_setup_required);
+                    console.log('User ID:', data.user_id);
+                    console.log('Data keys:', Object.keys(data));
+
+                    if (response.ok) {
+                        // Check if MFA is required
+                        if (data.mfa_required) {
+                            console.log('=== MFA REQUIRED DETECTED ===');
+                            console.log('MFA required for user:', data.user_id);
+                            console.log('Current flags - mfaSetupCancelled:', mfaSetupCancelled, 'mfaSetupSuccessful:', mfaSetupSuccessful);
+                            setLoadingState(false);
+                            showMfaVerifyModal(data.user_id);
+                        } else if (data.mfa_setup_required) {
+                            console.log('MFA setup required for user:', data.user_id);
+                            setLoadingState(false);
+                            showMfaSetupModal(data.user_id);
+                        } else {
+                            // Normal login - check if password change is required
+                            if (data.password_change_required) {
+                                console.log('Password change required for user:', data.user_id);
+                                setLoadingState(false);
+                                showPasswordChangeModal(data.user_id);
+                            } else {
+                                // Store user session
+                                localStorage.setItem('user', JSON.stringify(data.user));
+                                localStorage.setItem('token', data.token);
+                                
+                                // Redirect to dashboard
+                                window.location.href = '/dashboard';
+                            }
+                        }
+                    } else {
+                        showError(data.message || 'Login failed. Please check your credentials.');
+                    }
+                } catch (error) {
+                    console.error('Login error:', error);
+                    showError('Network error. Please try again.');
+                } finally {
+                    setLoadingState(false);
+                }
+            });
+
+            function showError(message) {
+                errorText.textContent = message;
+                errorMessage.classList.remove('hidden');
+                setTimeout(() => {
+                    errorMessage.classList.add('hidden');
+                }, 5000);
+            }
+
+            function setLoadingState(loading) {
+                if (loading) {
+                    loginButton.disabled = true;
+                    loginButtonText.textContent = 'Signing In...';
+                    loginSpinner.classList.remove('hidden');
+                    loginButton.classList.add('opacity-75', 'cursor-not-allowed');
+                } else {
+                    loginButton.disabled = false;
+                    loginButtonText.textContent = 'Sign In';
+                    loginSpinner.classList.add('hidden');
+                    loginButton.classList.remove('opacity-75', 'cursor-not-allowed');
+                }
+            }
+
+            // Note: Automatic redirect removed to prevent redirect loops
+            // Users should manually log in after server restart
+        });
+
+        // MFA Functions
+        let currentUserId = null;
+        let mfaSetupCancelled = false;
+        let mfaSetupSuccessful = false;
+
+        function showMfaSetupModal(userId) {
+            currentUserId = userId;
+            mfaSetupCancelled = false;
+            mfaSetupSuccessful = false;
+            document.getElementById('mfaSetupModal').classList.remove('hidden');
+            
+            // Start MFA setup process
+            startMfaSetup(userId);
+        }
+
+        function hideMfaSetupModal() {
+            // Clear QR code from display
+            const qrContainer = document.getElementById('qrCodeContainer');
+            qrContainer.innerHTML = '';
+            
+            // Also hide MFA verification modal if it's open
+            document.getElementById('mfaVerifyModal').classList.add('hidden');
+            
+            document.getElementById('mfaSetupModal').classList.add('hidden');
+            currentUserId = null;
+        }
+
+        function cancelMfaSetup() {
+            // Set cancelled flag when user actually cancels
+            mfaSetupCancelled = true;
+            mfaSetupSuccessful = false;
+            
+            // Clean up MFA setup
+            if (currentUserId) {
+                fetch('/api/auth/mfa/cleanup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_id: currentUserId })
+                }).catch(error => {
+                    console.error('Error cleaning up MFA setup:', error);
+                });
+            }
+            
+            hideMfaSetupModal();
+        }
+
+        function showMfaVerifyModal(userId) {
+            console.log('=== showMfaVerifyModal called ===');
+            console.log('Showing MFA verify modal for user:', userId);
+            console.log('Current user ID before setting:', currentUserId);
+            console.log('MFA setup cancelled:', mfaSetupCancelled);
+            console.log('MFA setup successful:', mfaSetupSuccessful);
+            
+            if (!userId) {
+                console.error('No user ID provided for MFA verification');
+                return;
+            }
+            
+            if (mfaSetupCancelled) {
+                console.log('MFA setup was cancelled, not showing verification modal');
+                return;
+            }
+            
+            currentUserId = userId;
+            console.log('Current user ID after setting:', currentUserId);
+            
+            const modal = document.getElementById('mfaVerifyModal');
+            console.log('MFA verify modal element:', modal);
+            if (modal) {
+                modal.classList.remove('hidden');
+                console.log('MFA verify modal shown');
+            } else {
+                console.error('MFA verify modal element not found');
+            }
+        }
+
+        function hideMfaVerifyModal() {
+            document.getElementById('mfaVerifyModal').classList.add('hidden');
+            currentUserId = null;
+        }
+
+        async function startMfaSetup(userId) {
+            try {
+                const response = await fetch('/api/auth/mfa/setup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_id: userId })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Display QR code
+                    const qrContainer = document.getElementById('qrCodeContainer');
+                    // The qr_path is already just the filename, no need to extract
+                    qrContainer.innerHTML = `<img src="/api/auth/mfa/qr/${data.qr_path}" alt="MFA QR Code" class="w-32 h-32 mx-auto">`;
+                } else {
+                    showMfaSetupError(data.message || 'Failed to start MFA setup');
+                }
+            } catch (error) {
+                console.error('MFA setup error:', error);
+                showMfaSetupError('Network error. Please try again.');
+            }
+        }
+
+        async function verifyMfaSetup() {
+            const code = document.getElementById('mfaSetupCode').value;
+            
+            if (!code || code.length !== 6) {
+                showMfaSetupError('Please enter a valid 6-digit code');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/mfa/verify-setup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        totp_code: code
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // MFA setup completed successfully
+                    mfaSetupCancelled = false; // Reset cancelled flag
+                    mfaSetupSuccessful = true; // Set successful flag
+                    hideMfaSetupModal();
+                    showSuccess('MFA setup completed successfully! Please log in again to complete the process.');
+                    
+                    // Clear the login form to force re-login
+                    document.getElementById('email').value = '';
+                    document.getElementById('password').value = '';
+                } else {
+                    showMfaSetupError(data.message || 'Invalid code. Please try again.');
+                }
+            } catch (error) {
+                console.error('MFA verification error:', error);
+                showMfaSetupError('Network error. Please try again.');
+            }
+        }
+
+        async function verifyMfaCode() {
+            const code = document.getElementById('mfaVerifyCode').value;
+            console.log('Verifying MFA code for user:', currentUserId, 'code:', code);
+            
+            if (!currentUserId) {
+                console.error('No current user ID for MFA verification');
+                showMfaVerifyError('Session expired. Please log in again.');
+                return;
+            }
+            
+            if (!code || code.length !== 6) {
+                showMfaVerifyError('Please enter a valid 6-digit code');
+                return;
+            }
+
+            try {
+                console.log('Sending MFA complete-login request for user:', currentUserId, 'with code:', code);
+                const response = await fetch('/api/auth/mfa/complete-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        totp_code: code
+                    })
+                });
+
+                const data = await response.json();
+                console.log('MFA complete-login response:', response.status, data);
+                
+                if (response.ok) {
+                    // MFA verification successful - complete login
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('token', data.token);
+                    
+                    // Redirect to dashboard
+                    window.location.href = '/dashboard';
+                } else {
+                    showMfaVerifyError(data.message || 'Invalid code. Please try again.');
+                }
+            } catch (error) {
+                console.error('MFA verification error:', error);
+                showMfaVerifyError('Network error. Please try again.');
+            }
+        }
+
+        function showMfaSetupError(message) {
+            const errorDiv = document.getElementById('mfaSetupError');
+            const errorText = document.getElementById('mfaSetupErrorText');
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        function showMfaVerifyError(message) {
+            const errorDiv = document.getElementById('mfaVerifyError');
+            const errorText = document.getElementById('mfaVerifyErrorText');
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            // You can implement a success notification here
+            alert(message);
+        }
+
+        // Event listeners for MFA buttons
+        document.getElementById('verifyMfaSetup').addEventListener('click', verifyMfaSetup);
+        document.getElementById('verifyMfaCode').addEventListener('click', verifyMfaCode);
+
+        // Auto-focus on code inputs (no auto-submit)
+        document.getElementById('mfaSetupCode').addEventListener('input', function(e) {
+            // Just allow typing, no auto-submit
+        });
+
+        document.getElementById('mfaVerifyCode').addEventListener('input', function(e) {
+            // Just allow typing, no auto-submit
+        });
+
+        // Password Change Functions
+        function showPasswordChangeModal(userId) {
+            console.log('Showing password change modal for user:', userId);
+            currentUserId = userId;
+            document.getElementById('passwordChangeModal').classList.remove('hidden');
+        }
+
+        function hidePasswordChangeModal() {
+            document.getElementById('passwordChangeModal').classList.add('hidden');
+            currentUserId = null;
+            // Clear form
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            hidePasswordChangeError();
+        }
+
+        function toggleNewPasswordVisibility() {
+            const passwordInput = document.getElementById('newPassword');
+            const eyeIcon = document.getElementById('newPasswordEyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function toggleConfirmPasswordVisibility() {
+            const passwordInput = document.getElementById('confirmPassword');
+            const eyeIcon = document.getElementById('confirmPasswordEyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function showPasswordChangeError(message) {
+            const errorDiv = document.getElementById('passwordChangeError');
+            const errorText = document.getElementById('passwordChangeErrorText');
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hidePasswordChangeError() {
+            document.getElementById('passwordChangeError').classList.add('hidden');
+        }
+
+        async function changePassword() {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!newPassword || !confirmPassword) {
+                showPasswordChangeError('Please fill in all fields');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showPasswordChangeError('Passwords do not match');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showPasswordChangeError('Password must be at least 6 characters long');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/change-password-initial', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        new_password: newPassword
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    hidePasswordChangeModal();
+                    showSuccess('Password changed successfully! Please log in again.');
+                    // Clear login form
+                    document.getElementById('email').value = '';
+                    document.getElementById('password').value = '';
+                } else {
+                    showPasswordChangeError(data.message || 'Failed to change password');
+                }
+            } catch (error) {
+                console.error('Password change error:', error);
+                showPasswordChangeError('Network error. Please try again.');
+            }
+        }
+
+        // Event listener for password change button
+        document.getElementById('changePassword').addEventListener('click', changePassword);
+    </script>
+</body>
+</html>

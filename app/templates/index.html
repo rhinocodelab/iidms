@@ -7,6 +7,31 @@
 
 {% block content %}
 <div class="space-y-6">
+    <!-- Password Change Notification -->
+    <div id="passwordChangeNotification" class="hidden bg-orange-50 border-l-4 border-orange-400 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-orange-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-orange-700">
+                    <strong>Security Notice:</strong> For your account security, please change your default password. 
+                    <button onclick="showPasswordChangeModal()" class="ml-2 text-orange-800 underline hover:text-orange-900">
+                        Change Password Now
+                    </button>
+                </p>
+            </div>
+            <div class="ml-auto pl-3">
+                <div class="-mx-1.5 -my-1.5">
+                    <button onclick="hidePasswordChangeNotification()" class="inline-flex bg-orange-50 rounded-md p-1.5 text-orange-500 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-orange-50 focus:ring-orange-600">
+                        <span class="sr-only">Dismiss</span>
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Stats Overview -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div class="bg-white  shadow-sm border border-gray-200 p-6">
@@ -110,6 +135,79 @@
     </div>
 
 </div>
+
+<!-- Password Change Modal -->
+<div id="passwordChangeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-key mr-2 text-orange-600"></i>Change Default Password
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-start mb-4">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h4 class="text-sm font-medium text-gray-900">Security Requirement</h4>
+                        <p class="text-sm text-gray-700 mt-1">
+                            For security reasons, you must change your default password before continuing to use the system.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-lock mr-2"></i>New Password
+                    </label>
+                    <div class="relative">
+                        <input type="password" id="newPassword" 
+                               class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                               placeholder="Enter new password">
+                        <button type="button" id="toggleNewPassword" onclick="toggleNewPasswordVisibility()" 
+                                class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <i id="newPasswordEyeIcon" class="fas fa-eye text-gray-400"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-lock mr-2"></i>Confirm New Password
+                    </label>
+                    <div class="relative">
+                        <input type="password" id="confirmPassword" 
+                               class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                               placeholder="Confirm new password">
+                        <button type="button" id="toggleConfirmPassword" onclick="toggleConfirmPasswordVisibility()" 
+                                class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <i id="confirmPasswordEyeIcon" class="fas fa-eye text-gray-400"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="passwordChangeError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <span id="passwordChangeErrorText"></span>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="hidePasswordChangeModal()" 
+                            class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" id="changePassword" 
+                            class="px-4 py-2 bg-orange-600 text-white hover:bg-orange-700 transition-colors">
+                        <i class="fas fa-key mr-2"></i>Change Password
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -395,6 +493,159 @@ document.addEventListener('DOMContentLoaded', function() {
         loadDashboardMetrics();
         loadAnalyticsPreview();
     }, 30000);
+
+    // Check if user needs to change password
+    checkPasswordChangeRequirement();
 });
+
+// Password Change Functions
+function checkPasswordChangeRequirement() {
+    const user = localStorage.getItem('user');
+    console.log('Checking password change requirement...');
+    console.log('User data from localStorage:', user);
+    
+    if (user) {
+        try {
+            const userData = JSON.parse(user);
+            console.log('Parsed user data:', userData);
+            console.log('has_changed_default_password:', userData.has_changed_default_password);
+            console.log('Type of has_changed_default_password:', typeof userData.has_changed_default_password);
+            
+            if (userData.has_changed_default_password === false || userData.has_changed_default_password === 0) {
+                console.log('Password change required - showing notification');
+                showPasswordChangeNotification();
+            } else {
+                console.log('Password change not required');
+            }
+        } catch (e) {
+            console.error('Error parsing user data:', e);
+        }
+    } else {
+        console.log('No user data found in localStorage');
+    }
+}
+
+function showPasswordChangeNotification() {
+    console.log('showPasswordChangeNotification called');
+    const notification = document.getElementById('passwordChangeNotification');
+    console.log('Notification element:', notification);
+    if (notification) {
+        notification.classList.remove('hidden');
+        console.log('Password change notification should now be visible');
+    } else {
+        console.error('Password change notification element not found!');
+    }
+}
+
+function hidePasswordChangeNotification() {
+    document.getElementById('passwordChangeNotification').classList.add('hidden');
+}
+
+function showPasswordChangeModal() {
+    document.getElementById('passwordChangeModal').classList.remove('hidden');
+}
+
+function hidePasswordChangeModal() {
+    document.getElementById('passwordChangeModal').classList.add('hidden');
+    // Clear form
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+    hidePasswordChangeError();
+}
+
+function toggleNewPasswordVisibility() {
+    const passwordInput = document.getElementById('newPassword');
+    const eyeIcon = document.getElementById('newPasswordEyeIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye');
+    }
+}
+
+function toggleConfirmPasswordVisibility() {
+    const passwordInput = document.getElementById('confirmPassword');
+    const eyeIcon = document.getElementById('confirmPasswordEyeIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye');
+    }
+}
+
+function showPasswordChangeError(message) {
+    const errorDiv = document.getElementById('passwordChangeError');
+    const errorText = document.getElementById('passwordChangeErrorText');
+    errorText.textContent = message;
+    errorDiv.classList.remove('hidden');
+}
+
+function hidePasswordChangeError() {
+    document.getElementById('passwordChangeError').classList.add('hidden');
+}
+
+async function changePassword() {
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (!newPassword || !confirmPassword) {
+        showPasswordChangeError('Please fill in all fields');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showPasswordChangeError('Passwords do not match');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showPasswordChangeError('Password must be at least 6 characters long');
+        return;
+    }
+    
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const response = await fetch('/api/auth/change-password-initial', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: user.id,
+                new_password: newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            hidePasswordChangeModal();
+            hidePasswordChangeNotification();
+            // Update user data in localStorage
+            user.has_changed_default_password = true;
+            localStorage.setItem('user', JSON.stringify(user));
+            // Show success message
+            alert('Password changed successfully!');
+        } else {
+            showPasswordChangeError(data.message || 'Failed to change password');
+        }
+    } catch (error) {
+        console.error('Password change error:', error);
+        showPasswordChangeError('Network error. Please try again.');
+    }
+}
+
+// Event listener for password change button
+document.getElementById('changePassword').addEventListener('click', changePassword);
 </script>
 {% endblock %}
