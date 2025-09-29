@@ -28,9 +28,111 @@
         .right-panel {
             background: white;
         }
+        
+        /* Toast Notification Styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        }
+        
+        .toast {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(100%);
+            transition: all 0.3s ease-in-out;
+            min-width: 300px;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            background: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        
+        .toast.error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+        
+        .toast.warning {
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+        
+        .toast.info {
+            background: #dbeafe;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+        
+        .toast-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        
+        .toast-content {
+            flex: 1;
+        }
+        
+        .toast-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        
+        .toast-message {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .toast-close {
+            margin-left: 12px;
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .toast-close:hover {
+            opacity: 1;
+        }
+        
+        .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 0 0 8px 8px;
+            transition: width linear;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
     <div class="login-container w-full max-w-3xl mx-4 flex">
         <!-- Left Panel - Logo and Branding -->
         <div class="left-panel flex-1 p-8 flex flex-col justify-between items-center text-center">
@@ -63,7 +165,7 @@
                         </label>
                         <input type="email" id="email" name="email" required
                                class="w-full px-4 py-3 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                               placeholder="Enter your email address">
+                               placeholder="example.idmsdemo.com">
                     </div>
 
                     <div>
@@ -80,11 +182,6 @@
                         </div>
                     </div>
 
-                    <!-- Error Message -->
-                    <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
-                        <i class="fas fa-exclamation-triangle mr-2"></i>
-                        <span id="errorText"></span>
-                    </div>
 
                     <!-- Login Button -->
                     <button type="submit" id="loginButton"
@@ -123,10 +220,6 @@
                                  placeholder="123456">
                       </div>
                       
-                      <div id="mfaSetupError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
-                          <i class="fas fa-exclamation-triangle mr-2"></i>
-                          <span id="mfaSetupErrorText"></span>
-                      </div>
                       
                       <div class="flex justify-end space-x-3">
                           <button type="button" onclick="cancelMfaSetup()" 
@@ -165,10 +258,6 @@
                                  placeholder="123456">
                       </div>
                       
-                      <div id="mfaVerifyError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
-                          <i class="fas fa-exclamation-triangle mr-2"></i>
-                          <span id="mfaVerifyErrorText"></span>
-                      </div>
                       
                       <div class="flex justify-end space-x-3">
                           <button type="button" onclick="hideMfaVerifyModal()" 
@@ -237,10 +326,6 @@
                           </div>
                       </div>
                       
-                      <div id="passwordChangeError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm mb-4">
-                          <i class="fas fa-exclamation-triangle mr-2"></i>
-                          <span id="passwordChangeErrorText"></span>
-                      </div>
                       
                       <div class="flex justify-end space-x-3">
                           <button type="button" onclick="hidePasswordChangeModal()" 
@@ -258,13 +343,95 @@
       </div>
 
       <script>
+        // Toast Notification System
+        class ToastManager {
+            constructor() {
+                this.container = document.getElementById('toastContainer');
+                this.toasts = new Map();
+            }
+
+            show(type, title, message, duration = 5000) {
+                const toastId = Date.now() + Math.random();
+                const toast = this.createToast(toastId, type, title, message, duration);
+                this.container.appendChild(toast);
+                this.toasts.set(toastId, toast);
+
+                // Trigger animation
+                setTimeout(() => toast.classList.add('show'), 100);
+
+                // Auto remove
+                if (duration > 0) {
+                    setTimeout(() => this.remove(toastId), duration);
+                }
+
+                return toastId;
+            }
+
+            createToast(id, type, title, message, duration) {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.dataset.toastId = id;
+
+                const iconMap = {
+                    success: 'fas fa-check-circle',
+                    error: 'fas fa-exclamation-triangle',
+                    warning: 'fas fa-exclamation-circle',
+                    info: 'fas fa-info-circle'
+                };
+
+                toast.innerHTML = `
+                    <div class="toast-icon">
+                        <i class="${iconMap[type] || 'fas fa-info-circle'}"></i>
+                    </div>
+                    <div class="toast-content">
+                        <div class="toast-title">${title}</div>
+                        <div class="toast-message">${message}</div>
+                    </div>
+                    <button class="toast-close" onclick="toastManager.remove(${id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    ${duration > 0 ? `<div class="toast-progress" style="width: 100%; animation: progress ${duration}ms linear forwards;"></div>` : ''}
+                `;
+
+                return toast;
+            }
+
+            remove(id) {
+                const toast = this.toasts.get(id);
+                if (toast) {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                        this.toasts.delete(id);
+                    }, 300);
+                }
+            }
+
+            clear() {
+                this.toasts.forEach((toast, id) => this.remove(id));
+            }
+        }
+
+        // Initialize toast manager
+        const toastManager = new ToastManager();
+
+        // Add CSS animation for progress bar
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes progress {
+                from { width: 100%; }
+                to { width: 0%; }
+            }
+        `;
+        document.head.appendChild(style);
+
         document.addEventListener('DOMContentLoaded', function() {
             const loginForm = document.getElementById('loginForm');
             const togglePassword = document.getElementById('togglePassword');
             const passwordInput = document.getElementById('password');
             const eyeIcon = document.getElementById('eyeIcon');
-            const errorMessage = document.getElementById('errorMessage');
-            const errorText = document.getElementById('errorText');
             const loginButton = document.getElementById('loginButton');
             const loginButtonText = document.getElementById('loginButtonText');
             const loginSpinner = document.getElementById('loginSpinner');
@@ -285,7 +452,7 @@
                 const password = document.getElementById('password').value;
 
                 if (!email || !password) {
-                    showError('Please enter both email and password');
+                    toastManager.show('error', 'Validation Error', 'Please enter both email and password');
                     return;
                 }
 
@@ -340,23 +507,16 @@
                             }
                         }
                     } else {
-                        showError(data.message || 'Login failed. Please check your credentials.');
+                        toastManager.show('error', 'Login Failed', data.message || 'Please check your credentials.');
                     }
                 } catch (error) {
                     console.error('Login error:', error);
-                    showError('Network error. Please try again.');
+                    toastManager.show('error', 'Network Error', 'Please try again.');
                 } finally {
                     setLoadingState(false);
                 }
             });
 
-            function showError(message) {
-                errorText.textContent = message;
-                errorMessage.classList.remove('hidden');
-                setTimeout(() => {
-                    errorMessage.classList.add('hidden');
-                }, 5000);
-            }
 
             function setLoadingState(loading) {
                 if (loading) {
@@ -477,11 +637,11 @@
                     // The qr_path is already just the filename, no need to extract
                     qrContainer.innerHTML = `<img src="/api/auth/mfa/qr/${data.qr_path}" alt="MFA QR Code" class="w-32 h-32 mx-auto">`;
                 } else {
-                    showMfaSetupError(data.message || 'Failed to start MFA setup');
+                    toastManager.show('error', 'MFA Setup Failed', data.message || 'Failed to start MFA setup');
                 }
             } catch (error) {
                 console.error('MFA setup error:', error);
-                showMfaSetupError('Network error. Please try again.');
+                toastManager.show('error', 'Network Error', 'Please try again.');
             }
         }
 
@@ -489,7 +649,7 @@
             const code = document.getElementById('mfaSetupCode').value;
             
             if (!code || code.length !== 6) {
-                showMfaSetupError('Please enter a valid 6-digit code');
+                toastManager.show('error', 'Invalid Code', 'Please enter a valid 6-digit code');
                 return;
             }
 
@@ -512,17 +672,17 @@
                     mfaSetupCancelled = false; // Reset cancelled flag
                     mfaSetupSuccessful = true; // Set successful flag
                     hideMfaSetupModal();
-                    showSuccess('MFA setup completed successfully! Please log in again to complete the process.');
+                    toastManager.show('success', 'MFA Setup Complete', 'Please log in again to complete the process.');
                     
                     // Clear the login form to force re-login
                     document.getElementById('email').value = '';
                     document.getElementById('password').value = '';
                 } else {
-                    showMfaSetupError(data.message || 'Invalid code. Please try again.');
+                    toastManager.show('error', 'Invalid Code', data.message || 'Please try again.');
                 }
             } catch (error) {
                 console.error('MFA verification error:', error);
-                showMfaSetupError('Network error. Please try again.');
+                toastManager.show('error', 'Network Error', 'Please try again.');
             }
         }
 
@@ -532,12 +692,12 @@
             
             if (!currentUserId) {
                 console.error('No current user ID for MFA verification');
-                showMfaVerifyError('Session expired. Please log in again.');
+                toastManager.show('error', 'Session Expired', 'Please log in again.');
                 return;
             }
             
             if (!code || code.length !== 6) {
-                showMfaVerifyError('Please enter a valid 6-digit code');
+                toastManager.show('error', 'Invalid Code', 'Please enter a valid 6-digit code');
                 return;
             }
 
@@ -565,38 +725,14 @@
                     // Redirect to dashboard
                     window.location.href = '/dashboard';
                 } else {
-                    showMfaVerifyError(data.message || 'Invalid code. Please try again.');
+                    toastManager.show('error', 'Invalid Code', data.message || 'Please try again.');
                 }
             } catch (error) {
                 console.error('MFA verification error:', error);
-                showMfaVerifyError('Network error. Please try again.');
+                toastManager.show('error', 'Network Error', 'Please try again.');
             }
         }
 
-        function showMfaSetupError(message) {
-            const errorDiv = document.getElementById('mfaSetupError');
-            const errorText = document.getElementById('mfaSetupErrorText');
-            errorText.textContent = message;
-            errorDiv.classList.remove('hidden');
-            setTimeout(() => {
-                errorDiv.classList.add('hidden');
-            }, 5000);
-        }
-
-        function showMfaVerifyError(message) {
-            const errorDiv = document.getElementById('mfaVerifyError');
-            const errorText = document.getElementById('mfaVerifyErrorText');
-            errorText.textContent = message;
-            errorDiv.classList.remove('hidden');
-            setTimeout(() => {
-                errorDiv.classList.add('hidden');
-            }, 5000);
-        }
-
-        function showSuccess(message) {
-            // You can implement a success notification here
-            alert(message);
-        }
 
         // Event listeners for MFA buttons
         document.getElementById('verifyMfaSetup').addEventListener('click', verifyMfaSetup);
@@ -624,7 +760,6 @@
             // Clear form
             document.getElementById('newPassword').value = '';
             document.getElementById('confirmPassword').value = '';
-            hidePasswordChangeError();
         }
 
         function toggleNewPasswordVisibility() {
@@ -657,33 +792,23 @@
             }
         }
 
-        function showPasswordChangeError(message) {
-            const errorDiv = document.getElementById('passwordChangeError');
-            const errorText = document.getElementById('passwordChangeErrorText');
-            errorText.textContent = message;
-            errorDiv.classList.remove('hidden');
-        }
-
-        function hidePasswordChangeError() {
-            document.getElementById('passwordChangeError').classList.add('hidden');
-        }
 
         async function changePassword() {
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             
             if (!newPassword || !confirmPassword) {
-                showPasswordChangeError('Please fill in all fields');
+                toastManager.show('error', 'Validation Error', 'Please fill in all fields');
                 return;
             }
             
             if (newPassword !== confirmPassword) {
-                showPasswordChangeError('Passwords do not match');
+                toastManager.show('error', 'Password Mismatch', 'Passwords do not match');
                 return;
             }
             
             if (newPassword.length < 6) {
-                showPasswordChangeError('Password must be at least 6 characters long');
+                toastManager.show('error', 'Password Too Short', 'Password must be at least 6 characters long');
                 return;
             }
             
@@ -703,16 +828,16 @@
                 
                 if (response.ok) {
                     hidePasswordChangeModal();
-                    showSuccess('Password changed successfully! Please log in again.');
+                    toastManager.show('success', 'Password Changed', 'Please log in again.');
                     // Clear login form
                     document.getElementById('email').value = '';
                     document.getElementById('password').value = '';
                 } else {
-                    showPasswordChangeError(data.message || 'Failed to change password');
+                    toastManager.show('error', 'Password Change Failed', data.message || 'Failed to change password');
                 }
             } catch (error) {
                 console.error('Password change error:', error);
-                showPasswordChangeError('Network error. Please try again.');
+                toastManager.show('error', 'Network Error', 'Please try again.');
             }
         }
 

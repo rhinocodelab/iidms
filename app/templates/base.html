@@ -11,6 +11,105 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
     
+    <style>
+        /* Toast Notification Styles */
+        .toast {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateX(100%);
+            transition: all 0.3s ease-in-out;
+            min-width: 300px;
+            position: relative;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            background: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        
+        .toast.error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+        
+        .toast.warning {
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+        
+        .toast.info {
+            background: #dbeafe;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+        
+        .toast-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        
+        .toast-content {
+            flex: 1;
+        }
+        
+        .toast-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        
+        .toast-message {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .toast-close {
+            margin-left: 12px;
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .toast-close:hover {
+            opacity: 1;
+        }
+        
+        .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 0 0 8px 8px;
+            transition: width linear;
+        }
+        
+        @keyframes progress {
+            from { width: 100%; }
+            to { width: 0%; }
+        }
+    </style>
+    
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
@@ -74,18 +173,24 @@
                         <i class="fas fa-robot mr-3"></i>
                         <span>GhostLayer AI</span>
                     </a>
-                    <a href="/docs" target="_blank" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white mb-2 transition-colors duration-200">
-                        <i class="fas fa-cogs mr-3"></i>
-                        <span>API Endpoint</span>
-                    </a>
+                    <!-- API Endpoint - Admin Only -->
+                    <div id="api-endpoint-menu" class="hidden">
+                        <a href="/docs" target="_blank" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white mb-2 transition-colors duration-200">
+                            <i class="fas fa-cogs mr-3"></i>
+                            <span>API Endpoint</span>
+                        </a>
+                    </div>
                     <a href="/analytics" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white mb-2 transition-colors duration-200 {% if request.url.path == '/analytics' %}bg-gray-800 text-white{% endif %}">
                         <i class="fas fa-chart-line mr-3"></i>
                         <span>Analytics</span>
                     </a>
-                    <a href="/admin" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white mb-2 transition-colors duration-200 {% if request.url.path == '/admin' %}bg-gray-800 text-white{% endif %}">
-                        <i class="fas fa-database mr-3"></i>
-                        <span>Database</span>
-                    </a>
+                    <!-- Database - Admin Only -->
+                    <div id="database-menu" class="hidden">
+                        <a href="/admin" class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white mb-2 transition-colors duration-200 {% if request.url.path == '/admin' %}bg-gray-800 text-white{% endif %}">
+                            <i class="fas fa-database mr-3"></i>
+                            <span>Database</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Divider -->
@@ -140,12 +245,18 @@
                         <p class="text-sm text-gray-600 mt-1">{% block page_subtitle %}Welcome to IDMS{% endblock %}</p>
                     </div>
 
-                    <!-- User Info and Logout -->
+                    <!-- User Info and Actions -->
                     <div class="flex items-center space-x-4">
                         <div class="text-right">
                             <p class="text-sm font-medium text-gray-900" id="user-name">Loading...</p>
                             <p class="text-xs text-gray-500" id="user-role">Loading...</p>
                         </div>
+                        
+                        <!-- User Profile Button -->
+                        <button onclick="showUserProfile()" class="bg-blue-600 text-white px-3 py-2 hover:bg-blue-700 transition-colors text-sm">
+                            <i class="fas fa-user mr-1"></i>Profile
+                        </button>
+                        
                         <button onclick="logout()" class="bg-red-600 text-white px-3 py-2 hover:bg-red-700 transition-colors text-sm">
                             <i class="fas fa-sign-out-alt mr-1"></i>Logout
                         </button>
@@ -190,6 +301,9 @@
 
     <!-- Mobile Sidebar Overlay -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden"></div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 max-w-sm"></div>
 
     <!-- Password Change Modal -->
     <div id="passwordChangeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
@@ -248,6 +362,108 @@
         </div>
     </div>
 
+    <!-- User Profile Modal -->
+    <div id="userProfileModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white shadow-xl max-w-md w-full rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-user mr-2 text-blue-600"></i>User Profile
+                    </h3>
+                </div>
+                <div class="p-6">
+                    <!-- User Information Display -->
+                    <div class="mb-6">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="flex-shrink-0">
+                                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-blue-600 text-xl"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="text-lg font-medium text-gray-900" id="profile-user-name">Loading...</h4>
+                                    <p class="text-sm text-gray-500" id="profile-user-role">Loading...</p>
+                                    <p class="text-xs text-gray-400" id="profile-user-email">Loading...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password Change Section -->
+                    <div class="border-t border-gray-200 pt-6">
+                        <h4 class="text-md font-medium text-gray-900 mb-4">
+                            <i class="fas fa-key mr-2 text-orange-600"></i>Change Password
+                        </h4>
+                        
+                        <form id="profilePasswordForm" class="space-y-4">
+                            <div>
+                                <label for="profileCurrentPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                                    <i class="fas fa-lock mr-2"></i>Current Password
+                                </label>
+                                <div class="relative">
+                                    <input type="password" id="profileCurrentPassword" required
+                                           class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                           placeholder="Enter current password">
+                                    <button type="button" id="toggleProfileCurrentPassword" onclick="toggleProfileCurrentPasswordVisibility()" 
+                                            class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                        <i id="profileCurrentPasswordEyeIcon" class="fas fa-eye text-gray-400"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label for="profileNewPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                                    <i class="fas fa-lock mr-2"></i>New Password
+                                </label>
+                                <div class="relative">
+                                    <input type="password" id="profileNewPassword" required
+                                           class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                           placeholder="Enter new password">
+                                    <button type="button" id="toggleProfileNewPassword" onclick="toggleProfileNewPasswordVisibility()" 
+                                            class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                        <i id="profileNewPasswordEyeIcon" class="fas fa-eye text-gray-400"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label for="profileConfirmNewPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                                    <i class="fas fa-lock mr-2"></i>Confirm New Password
+                                </label>
+                                <div class="relative">
+                                    <input type="password" id="profileConfirmNewPassword" required
+                                           class="w-full px-3 py-2 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                           placeholder="Confirm new password">
+                                    <button type="button" id="toggleProfileConfirmNewPassword" onclick="toggleProfileConfirmNewPasswordVisibility()" 
+                                            class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                        <i id="profileConfirmNewPasswordEyeIcon" class="fas fa-eye text-gray-400"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="profilePasswordError" class="hidden bg-red-50 border border-red-200 p-2 text-red-700 text-sm">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <span id="profilePasswordErrorText"></span>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 pt-4">
+                                <button type="button" onclick="hideUserProfile()" 
+                                        class="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="submit" id="changeProfilePasswordBtn" 
+                                        class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-key mr-2"></i>Change Password
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
     <script src="{{ url_for('static', path='js/main.js') }}"></script>
     <script>
@@ -277,6 +493,24 @@
         // Settings modal
         function showSettings() {
             alert('Settings panel coming soon!');
+        }
+
+        // User Profile modal
+        function showUserProfile() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user) {
+                document.getElementById('profile-user-name').textContent = user.full_name || user.username;
+                document.getElementById('profile-user-role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+                document.getElementById('profile-user-email').textContent = user.username || user.email || 'N/A';
+            }
+            document.getElementById('userProfileModal').classList.remove('hidden');
+        }
+
+        function hideUserProfile() {
+            document.getElementById('userProfileModal').classList.add('hidden');
+            // Clear form
+            document.getElementById('profilePasswordForm').reset();
+            hideProfilePasswordError();
         }
 
         // Toggle upload submenu
@@ -369,12 +603,19 @@
                 document.getElementById('user-name').textContent = userData.full_name || userData.username;
                 document.getElementById('user-role').textContent = userData.role.charAt(0).toUpperCase() + userData.role.slice(1);
                 
-                // Show/hide User Management menu based on role
+                // Show/hide admin-only menus based on role
                 const userManagementMenu = document.getElementById('user-management-menu');
+                const apiEndpointMenu = document.getElementById('api-endpoint-menu');
+                const databaseMenu = document.getElementById('database-menu');
+                
                 if (userData.role === 'admin') {
                     userManagementMenu.classList.remove('hidden');
+                    apiEndpointMenu.classList.remove('hidden');
+                    databaseMenu.classList.remove('hidden');
                 } else {
                     userManagementMenu.classList.add('hidden');
+                    apiEndpointMenu.classList.add('hidden');
+                    databaseMenu.classList.add('hidden');
                 }
                 
                 return true;
@@ -480,6 +721,64 @@
             document.getElementById('passwordChangeError').classList.add('hidden');
         }
 
+        // Profile password change functions
+        function showProfilePasswordError(message) {
+            const errorDiv = document.getElementById('profilePasswordError');
+            const errorText = document.getElementById('profilePasswordErrorText');
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hideProfilePasswordError() {
+            document.getElementById('profilePasswordError').classList.add('hidden');
+        }
+
+        // Password visibility toggles for profile form
+        function toggleProfileCurrentPasswordVisibility() {
+            const passwordInput = document.getElementById('profileCurrentPassword');
+            const eyeIcon = document.getElementById('profileCurrentPasswordEyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function toggleProfileNewPasswordVisibility() {
+            const passwordInput = document.getElementById('profileNewPassword');
+            const eyeIcon = document.getElementById('profileNewPasswordEyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function toggleProfileConfirmNewPasswordVisibility() {
+            const passwordInput = document.getElementById('profileConfirmNewPassword');
+            const eyeIcon = document.getElementById('profileConfirmNewPasswordEyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
         async function handlePasswordChange(e) {
             e.preventDefault();
             
@@ -534,11 +833,126 @@
             }
         }
         
+        // Toast Notification System
+        function showToast(type, title, message, duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            const toastId = Date.now() + Math.random();
+            const toast = createToast(toastId, type, title, message, duration);
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Auto remove
+            if (duration > 0) {
+                setTimeout(() => removeToast(toastId), duration);
+            }
+            
+            return toastId;
+        }
+
+        function createToast(id, type, title, message, duration) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.dataset.toastId = id;
+
+            const iconMap = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-triangle',
+                warning: 'fas fa-exclamation-circle',
+                info: 'fas fa-info-circle'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <i class="${iconMap[type] || 'fas fa-info-circle'}"></i>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="removeToast(${id})">
+                    <i class="fas fa-times"></i>
+                </button>
+                ${duration > 0 ? `<div class="toast-progress" style="width: 100%; animation: progress ${duration}ms linear forwards;"></div>` : ''}
+            `;
+
+            return toast;
+        }
+
+        function removeToast(id) {
+            const toast = document.querySelector(`[data-toast-id="${id}"]`);
+            if (toast) {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }
+        }
+
         // Add form event listener
+        // Profile password change handler
+        async function handleProfilePasswordChange(e) {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('profileCurrentPassword').value;
+            const newPassword = document.getElementById('profileNewPassword').value;
+            const confirmPassword = document.getElementById('profileConfirmNewPassword').value;
+            
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showProfilePasswordError('Please fill in all fields');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showProfilePasswordError('New passwords do not match');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showProfilePasswordError('New password must be at least 6 characters long');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    hideUserProfile();
+                    // Show success message using toast notification
+                    showToast('success', 'Password Changed', 'Your password has been updated successfully!');
+                } else {
+                    showProfilePasswordError(data.message || 'Failed to change password');
+                }
+            } catch (error) {
+                console.error('Profile password change error:', error);
+                showProfilePasswordError('Network error. Please try again.');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const passwordChangeForm = document.getElementById('passwordChangeForm');
             if (passwordChangeForm) {
                 passwordChangeForm.addEventListener('submit', handlePasswordChange);
+            }
+            
+            const profilePasswordForm = document.getElementById('profilePasswordForm');
+            if (profilePasswordForm) {
+                profilePasswordForm.addEventListener('submit', handleProfilePasswordChange);
             }
         });
     </script>
