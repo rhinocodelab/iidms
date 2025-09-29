@@ -803,7 +803,7 @@ def assign_criticality_and_upload(file_path: str, result: dict, criticality_conf
     
     return result
 
-def process_archive(file_path: str, criticality_config: dict) -> Dict[str, dict]:
+def process_archive(file_path: str, criticality_config: dict, user_data: dict = None) -> Dict[str, dict]:
     """ Process an archive file: extract, classify, upload, cleanup. """
     results = {}
     extracted_folder = os.path.splitext(file_path)[0]
@@ -825,7 +825,7 @@ def process_archive(file_path: str, criticality_config: dict) -> Dict[str, dict]
 
     return results
 
-def process_single_file(file_path: str, criticality_config: dict) -> dict:
+def process_single_file(file_path: str, criticality_config: dict, user_data: dict = None) -> dict:
     """ Process a non-archive single file. """
     processing_start_time = datetime.now()
     
@@ -836,7 +836,12 @@ def process_single_file(file_path: str, criticality_config: dict) -> dict:
         # Save to database
         try:
             processing_end_time = datetime.now()
-            document_id = data_manager.save_document_processing(file_path, result, processing_start_time, processing_end_time)
+            if user_data:
+                # Use new AI document classifications table for authenticated users
+                document_id = data_manager.save_ai_document_processing(file_path, result, processing_start_time, processing_end_time, user_data)
+            else:
+                # Fallback to old documents table for non-authenticated users
+                document_id = data_manager.save_document_processing(file_path, result, processing_start_time, processing_end_time)
             result['document_id'] = document_id
             logger.info(f"Document saved to database with ID: {document_id}")
         except Exception as db_error:
@@ -849,7 +854,7 @@ def process_single_file(file_path: str, criticality_config: dict) -> dict:
         data_manager.log_error("processing_error", str(e), "high", context_data={"file_path": file_path})
         raise e
 
-def process_uploaded_files(files: List[UploadFile]) -> Dict[str, dict]:
+def process_uploaded_files(files: List[UploadFile], user_data: dict = None) -> Dict[str, dict]:
     criticality_config = load_criticality_config(config_file_path)
     results = {}
     temp_dir = "./temp"
@@ -860,10 +865,10 @@ def process_uploaded_files(files: List[UploadFile]) -> Dict[str, dict]:
         logger.info(f"Processing uploaded file - {uploaded_file.filename}")
 
         if temp_file_path.lower().endswith(('.zip', '.7z', '.tar', '.gz', '.bz2', '.xz', '.rar')):
-            archive_results = process_archive(temp_file_path, criticality_config)
+            archive_results = process_archive(temp_file_path, criticality_config, user_data)
             results.update(archive_results)
         else:
-            single_result = process_single_file(temp_file_path, criticality_config)
+            single_result = process_single_file(temp_file_path, criticality_config, user_data)
             results[uploaded_file.filename] = single_result
 
         # Cleanup uploaded file
@@ -1016,6 +1021,85 @@ async def debug_sessions():
         "sessions": list(user_sessions.keys())[:5]  # Show first 5 session keys
     }
 
+@app.post("/api/init-database")
+async def init_database():
+    """Initialize database with new tables"""
+    try:
+        # Reinitialize database to create new tables
+        db.init_database()
+        return {"success": True, "message": "Database initialized successfully"}
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        return {"success": False, "message": f"Database initialization failed: {str(e)}"}
+
+@app.get("/api/init-database")
+async def init_database_get():
+    """Initialize database with new tables (GET method for easy browser access)"""
+    try:
+        # Reinitialize database to create new tables
+        db.init_database()
+        return {"success": True, "message": "Database initialized successfully"}
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        return {"success": False, "message": f"Database initialization failed: {str(e)}"}
+
+@app.get("/api/check-tables")
+async def check_tables():
+    """Check if the new GhostLayer table exists"""
+    try:
+        import sqlite3
+        
+        # Connect to database
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+        
+        # Check if user_ghostlayer_documents table exists
+        cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='user_ghostlayer_documents'
+        """)
+        user_ghostlayer_exists = cursor.fetchone() is not None
+        
+        # Check if old ghostlayer_documents table exists
+        cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='ghostlayer_documents'
+        """)
+        old_ghostlayer_exists = cursor.fetchone() is not None
+        
+        # Get table info if it exists
+        table_info = None
+        if user_ghostlayer_exists:
+            cursor.execute("PRAGMA table_info(user_ghostlayer_documents)")
+            columns = cursor.fetchall()
+            table_info = {
+                "columns": [{"name": col[1], "type": col[2], "not_null": col[3], "default": col[4]} for col in columns]
+            }
+        
+        # Get row count if table exists
+        row_count = 0
+        if user_ghostlayer_exists:
+            cursor.execute("SELECT COUNT(*) FROM user_ghostlayer_documents")
+            row_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return {
+            "user_ghostlayer_documents_exists": user_ghostlayer_exists,
+            "old_ghostlayer_documents_exists": old_ghostlayer_exists,
+            "table_info": table_info,
+            "row_count": row_count,
+            "database_path": db.db_path
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking tables: {e}")
+        return {
+            "error": str(e),
+            "user_ghostlayer_documents_exists": False,
+            "old_ghostlayer_documents_exists": False
+        }
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Serve the main dashboard page (requires authentication)"""
@@ -1046,7 +1130,15 @@ async def upload_page(request: Request):
 async def upload_files_frontend(request: Request, files: List[UploadFile] = File(...)):
     """Handle file uploads from the frontend form"""
     try:
-        results = process_uploaded_files(files)
+        # Get user from session for AI Document Classification
+        user_data = require_auth(request)
+        if not user_data:
+            return templates.TemplateResponse("error.html", {
+                "request": request,
+                "error": "Authentication required for AI Document Classification"
+            })
+        
+        results = process_uploaded_files(files, user_data)
         return templates.TemplateResponse("results.html", {
             "request": request,
             "results": results,
@@ -1257,17 +1349,24 @@ def draw_text_coordinates(image, coordinates_data):
 # GhostLayer AI API Routes
 @app.get("/api/ghostlayer/documents")
 async def get_ghostlayer_documents(
+    request: Request,
     page: int = 1, 
     limit: int = 10, 
     search: str = "", 
     status: str = ""
 ):
-    """Get GhostLayer documents with pagination and filtering"""
+    """Get user-specific GhostLayer documents with pagination and filtering"""
     try:
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        user_id = user_data['id']
         offset = (page - 1) * limit
         
-        # Get documents from database
-        documents = db.get_ghostlayer_documents(limit=limit, offset=offset)
+        # Get documents from new user-specific table
+        documents = db.get_user_ghostlayer_documents(user_id=user_id, limit=limit, offset=offset)
         
         # Apply search filter if provided
         if search:
@@ -1278,7 +1377,7 @@ async def get_ghostlayer_documents(
             documents = [doc for doc in documents if doc['processing_status'] == status]
         
         # Get total count for pagination
-        all_docs = db.get_ghostlayer_documents(limit=1000, offset=0)  # Get more for accurate count
+        all_docs = db.get_user_ghostlayer_documents(user_id=user_id, limit=1000, offset=0)
         total_count = len(all_docs)
         
         # Calculate pagination info
@@ -1313,13 +1412,122 @@ async def get_ghostlayer_stats():
         logger.error(f"Error fetching GhostLayer stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch statistics")
 
+@app.get("/api/ai-documents")
+async def get_user_ai_documents(request: Request, page: int = 1, limit: int = 10):
+    """Get user's AI document classifications"""
+    try:
+        current_user = require_auth(request)
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        offset = (page - 1) * limit
+        
+        # Get user's AI document classifications
+        documents = db.get_ai_document_classifications(
+            user_id=current_user['id'], 
+            limit=limit, 
+            offset=offset
+        )
+        
+        # Get total count for pagination
+        all_docs = db.get_ai_document_classifications(
+            user_id=current_user['id'], 
+            limit=1000, 
+            offset=0
+        )
+        total_count = len(all_docs)
+        
+        # Calculate pagination info
+        total_pages = (total_count + limit - 1) // limit
+        start_item = offset + 1
+        end_item = min(offset + limit, total_count)
+        
+        pagination = {
+            "page": page,
+            "pages": total_pages,
+            "limit": limit,
+            "total": total_count,
+            "start": start_item,
+            "end": end_item
+        }
+        
+        return {
+            "documents": documents,
+            "pagination": pagination
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user AI documents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch documents")
+
+@app.get("/api/user-ghostlayer-documents")
+async def get_user_ghostlayer_documents(request: Request, page: int = 1, limit: int = 10):
+    """Get user-specific GhostLayer documents with pagination"""
+    try:
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        user_id = user_data['id']
+        offset = (page - 1) * limit
+        
+        # Get documents for the current user using new table
+        documents = db.get_user_ghostlayer_documents(user_id=user_id, limit=limit, offset=offset)
+        
+        # Get total count for pagination
+        all_docs = db.get_user_ghostlayer_documents(user_id=user_id, limit=1000, offset=0)
+        total_count = len(all_docs)
+        
+        # Calculate pagination info
+        total_pages = (total_count + limit - 1) // limit
+        start_item = offset + 1
+        end_item = min(offset + limit, total_count)
+        
+        pagination = {
+            "page": page,
+            "pages": total_pages,
+            "limit": limit,
+            "total": total_count,
+            "start": start_item,
+            "end": end_item
+        }
+        
+        return {
+            "documents": documents,
+            "pagination": pagination
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user GhostLayer documents: {e}")
+        # Return empty result instead of error for now
+        return {
+            "documents": [],
+            "pagination": {
+                "page": 1,
+                "pages": 1,
+                "limit": limit,
+                "total": 0,
+                "start": 0,
+                "end": 0
+            }
+        }
+
 @app.post("/api/ghostlayer/upload")
 async def upload_ghostlayer_document(
+    request: Request,
     file: UploadFile = File(...),
     document_type: str = Form("")
 ):
     """Upload a document for GhostLayer AI processing"""
     try:
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
         # Validate file
         if not file.filename:
             raise HTTPException(status_code=400, detail="No file provided")
@@ -1343,7 +1551,7 @@ async def upload_ghostlayer_document(
             document_type = "Photo"
         
         # Create upload directory if it doesn't exist
-        upload_dir = "temp/ghostlayer"
+        upload_dir = "upload_ghostlayer_docs"
         os.makedirs(upload_dir, exist_ok=True)
         
         # Generate unique filename
@@ -1356,8 +1564,10 @@ async def upload_ghostlayer_document(
             content = await file.read()
             buffer.write(content)
         
-        # Insert document record
+        # Insert document record with user tracking
         document_data = {
+            "user_id": user_data['id'],
+            "uploaded_by": user_data['username'],
             "document_name": file.filename,
             "document_type": document_type,
             "document_format": file_format,
@@ -1366,9 +1576,10 @@ async def upload_ghostlayer_document(
             "processing_status": "pending"
         }
         
-        document_id = db.insert_ghostlayer_document(document_data)
+        # Insert document record with user tracking using new table
+        document_id = db.insert_user_ghostlayer_document(document_data)
         
-        logger.info(f"GhostLayer document uploaded: {file.filename} (ID: {document_id})")
+        logger.info(f"User GhostLayer document uploaded: {file.filename} -> {file_path} by user {user_data['username']}")
         
         return {
             "message": "Document uploaded successfully",
@@ -1376,12 +1587,19 @@ async def upload_ghostlayer_document(
             "filename": file.filename
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error uploading GhostLayer document: {e}")
-        raise HTTPException(status_code=500, detail="Failed to upload document")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Exception details: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload document: {str(e)}")
 
 @app.post("/api/ghostlayer/identify")
 async def identify_document(
+    request: Request,
     file: UploadFile = File(...)
 ):
     """Identify document type using Google Cloud Document AI and keyword classification"""
@@ -1413,30 +1631,33 @@ async def identify_document(
             logger.error(f"Error creating upload directory {upload_dir}: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to create upload directory: {str(e)}")
         
-        # Generate unique filename with random number
-        random_number = random.randint(10000, 99999)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{random_number}_{timestamp}_{file.filename}"
-        file_path = os.path.join(upload_dir, filename)
-        logger.info(f"Generated file path: {file_path}")
+        # For identify endpoint, we need to find the existing file path from the database
+        # First, get user info to find their recent uploads
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
         
-        # Save file
-        try:
-            with open(file_path, "wb") as buffer:
-                content = await file.read()
-                buffer.write(content)
-            
-            # Verify file was saved
-            if os.path.exists(file_path):
-                file_size_saved = os.path.getsize(file_path)
-                logger.info(f"File saved successfully: {file_path} (size: {file_size_saved} bytes)")
-            else:
-                logger.error(f"File was not saved: {file_path}")
-                raise HTTPException(status_code=500, detail="File was not saved successfully")
-                
-        except Exception as e:
-            logger.error(f"Error saving file {file_path}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        user_id = user_data['id']
+        
+        # Find the most recent pending document for this user
+        existing_docs = db.get_user_ghostlayer_documents(user_id=user_id, limit=10, offset=0)
+        pending_docs = [doc for doc in existing_docs if doc['processing_status'] == 'pending']
+        
+        if not pending_docs:
+            raise HTTPException(status_code=404, detail="No pending documents found for processing")
+        
+        # Use the most recent pending document
+        target_doc = pending_docs[0]
+        file_path = target_doc['document_path']
+        logger.info(f"Using existing file path: {file_path}")
+        
+        # Verify the file exists
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+        
+        # Get file info from existing record
+        file_size = target_doc['document_size']
+        file_format = target_doc['document_format']
         
         # Detect MIME type
         mime_type = detect_mime_type(file_path)
@@ -1479,15 +1700,16 @@ async def identify_document(
             coordinates_dir = "upload_ghostlayer_docs/coordinates"
             os.makedirs(coordinates_dir, exist_ok=True)
             
-            # Generate coordinates JSON filename
-            coordinates_filename = f"{random_number}_{timestamp}_{os.path.splitext(file.filename)[0]}.json"
+            # Generate coordinates JSON filename using the existing file path
+            base_filename = os.path.splitext(os.path.basename(file_path))[0]
+            coordinates_filename = f"{base_filename}.json"
             coordinates_json_path = os.path.join(coordinates_dir, coordinates_filename)
             
             # Extract and save coordinates data
             coordinates_data = {
                 "document_info": {
-                    "original_filename": file.filename,
-                    "saved_filename": filename,
+                    "original_filename": target_doc['document_name'],
+                    "saved_filename": os.path.basename(file_path),
                     "document_type": document_name,
                     "confidence_score": confidence_score,
                     "processing_timestamp": datetime.now().isoformat()
@@ -1528,15 +1750,28 @@ async def identify_document(
             "ai_analysis_result": ai_result
         }
         
-        document_id = db.insert_ghostlayer_document(document_data)
+        # Update the existing record in user_ghostlayer_documents table
+        # We already have the target document from above
+        document_id = target_doc['id']
+        logger.info(f"Updating document ID: {document_id}")
         
-        logger.info(f"Document identified: {file.filename} -> {document_name} (confidence: {confidence_score})")
+        # Update the existing record with OCR results
+        update_data = {
+            "document_type": document_type,
+            "coordinates_json_path": coordinates_json_path,
+            "processing_status": "completed",
+            "ai_analysis_result": str(ai_result)
+        }
+        db.update_user_ghostlayer_document(document_id, update_data)
+        logger.info(f"Updated existing user GhostLayer document {document_id} with OCR results")
+        
+        logger.info(f"Document identified: {target_doc['document_name']} -> {document_name} (confidence: {confidence_score})")
         
         return {
             "status": "success",
             "document_id": document_id,
-            "original_filename": file.filename,
-            "saved_filename": filename,
+            "original_filename": target_doc['document_name'],
+            "saved_filename": os.path.basename(file_path),
             "file_path": file_path,
             "document_type": document_type,
             "document_name": document_name,
@@ -1554,13 +1789,22 @@ async def identify_document(
         raise HTTPException(status_code=500, detail=f"Failed to identify document: {str(e)}")
 
 @app.delete("/api/ghostlayer/delete/{document_id}")
-async def delete_ghostlayer_document(document_id: int):
-    """Delete a GhostLayer document"""
+async def delete_ghostlayer_document(request: Request, document_id: int):
+    """Delete a user's GhostLayer document"""
     try:
-        # Get document info
-        document = db.get_ghostlayer_document_by_id(document_id)
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Get document info from user-specific table
+        document = db.get_user_ghostlayer_document_by_id(document_id)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Verify the document belongs to the current user
+        if document['user_id'] != user_data['id']:
+            raise HTTPException(status_code=403, detail="Access denied - document belongs to another user")
         
         # Delete main document file from filesystem
         try:
@@ -1580,8 +1824,33 @@ async def delete_ghostlayer_document(document_id: int):
             except Exception as e:
                 logger.warning(f"Failed to delete coordinates JSON file {coordinates_path}: {e}")
         
+        # Also try to delete coordinates file based on document filename pattern
+        # This handles cases where coordinates_json_path might be None or incorrect
+        try:
+            document_filename = document.get('document_name', '')
+            if document_filename:
+                # Extract base filename without extension
+                base_name = os.path.splitext(document_filename)[0]
+                # Try different possible coordinate file patterns
+                coordinates_dir = "upload_ghostlayer_docs/coordinates"
+                possible_patterns = [
+                    f"{base_name}.json",
+                    f"*_{base_name}.json",
+                    f"{base_name}_*.json"
+                ]
+                
+                for pattern in possible_patterns:
+                    import glob
+                    matching_files = glob.glob(os.path.join(coordinates_dir, pattern))
+                    for file_path in matching_files:
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                            logger.info(f"Deleted coordinates file by pattern: {file_path}")
+        except Exception as e:
+            logger.warning(f"Failed to delete coordinates file by pattern: {e}")
+        
         # Delete from database
-        if not db.delete_ghostlayer_document(document_id):
+        if not db.delete_user_ghostlayer_document(document_id):
             raise HTTPException(status_code=404, detail="Document not found in database")
         
         logger.info(f"GhostLayer document deleted: {document['document_name']} (ID: {document_id})")
@@ -1594,13 +1863,77 @@ async def delete_ghostlayer_document(document_id: int):
         logger.error(f"Error deleting GhostLayer document: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete document")
 
-@app.get("/api/ghostlayer/download/{document_id}")
-async def download_ghostlayer_document(document_id: int):
-    """Download a GhostLayer document"""
+@app.post("/api/ghostlayer/cleanup-orphaned-files")
+async def cleanup_orphaned_coordinate_files(request: Request):
+    """Clean up orphaned coordinate files that don't have corresponding database records"""
     try:
-        document = db.get_ghostlayer_document_by_id(document_id)
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        import glob
+        import os
+        
+        # Get all coordinate files
+        coordinates_dir = "upload_ghostlayer_docs/coordinates"
+        if not os.path.exists(coordinates_dir):
+            return {"message": "No coordinates directory found", "cleaned_files": []}
+        
+        coordinate_files = glob.glob(os.path.join(coordinates_dir, "*.json"))
+        
+        # Get all valid coordinate paths from database
+        user_id = user_data['id']
+        user_docs = db.get_user_ghostlayer_documents(user_id=user_id, limit=1000, offset=0)
+        valid_coordinate_paths = set()
+        
+        for doc in user_docs:
+            if doc.get('coordinates_json_path'):
+                valid_coordinate_paths.add(doc['coordinates_json_path'])
+        
+        # Find orphaned files
+        orphaned_files = []
+        for file_path in coordinate_files:
+            if file_path not in valid_coordinate_paths:
+                orphaned_files.append(file_path)
+        
+        # Delete orphaned files
+        cleaned_files = []
+        for file_path in orphaned_files:
+            try:
+                os.remove(file_path)
+                cleaned_files.append(file_path)
+                logger.info(f"Cleaned up orphaned coordinate file: {file_path}")
+            except Exception as e:
+                logger.warning(f"Failed to delete orphaned file {file_path}: {e}")
+        
+        return {
+            "message": f"Cleanup completed. Removed {len(cleaned_files)} orphaned files",
+            "cleaned_files": cleaned_files
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cleaning up orphaned files: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cleanup orphaned files")
+
+@app.get("/api/ghostlayer/download/{document_id}")
+async def download_ghostlayer_document(request: Request, document_id: int):
+    """Download a user's GhostLayer document"""
+    try:
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        document = db.get_user_ghostlayer_document_by_id(document_id)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Verify the document belongs to the current user
+        if document['user_id'] != user_data['id']:
+            raise HTTPException(status_code=403, detail="Access denied - document belongs to another user")
         
         if not os.path.exists(document['document_path']):
             raise HTTPException(status_code=404, detail="File not found")
@@ -1618,12 +1951,21 @@ async def download_ghostlayer_document(document_id: int):
         raise HTTPException(status_code=500, detail="Failed to download document")
 
 @app.get("/api/ghostlayer/coordinates/{document_id}")
-async def download_ghostlayer_coordinates(document_id: int):
-    """Download coordinates JSON file for a GhostLayer document"""
+async def download_ghostlayer_coordinates(request: Request, document_id: int):
+    """Download coordinates JSON file for a user's GhostLayer document"""
     try:
-        document = db.get_ghostlayer_document_by_id(document_id)
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        document = db.get_user_ghostlayer_document_by_id(document_id)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Verify the document belongs to the current user
+        if document['user_id'] != user_data['id']:
+            raise HTTPException(status_code=403, detail="Access denied - document belongs to another user")
         
         coordinates_path = document.get('coordinates_json_path')
         if not coordinates_path or not os.path.exists(coordinates_path):
@@ -1645,12 +1987,21 @@ async def download_ghostlayer_coordinates(document_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to download coordinates: {str(e)}")
 
 @app.get("/api/ghostlayer/documents/{document_id}")
-async def get_ghostlayer_document(document_id: int):
-    """Get a specific GhostLayer document by ID"""
+async def get_ghostlayer_document(request: Request, document_id: int):
+    """Get a specific user's GhostLayer document by ID"""
     try:
-        document = db.get_ghostlayer_document_by_id(document_id)
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        document = db.get_user_ghostlayer_document_by_id(document_id)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Verify the document belongs to the current user
+        if document['user_id'] != user_data['id']:
+            raise HTTPException(status_code=403, detail="Access denied - document belongs to another user")
         
         return document
         
@@ -1661,15 +2012,24 @@ async def get_ghostlayer_document(document_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to fetch document: {str(e)}")
 
 @app.get("/api/ghostlayer/view/{document_id}")
-async def get_ghostlayer_marked_image(document_id: int):
-    """Get marked image with text coordinates using OpenCV"""
+async def get_ghostlayer_marked_image(request: Request, document_id: int):
+    """Get marked image with text coordinates using OpenCV for a user's document"""
     try:
+        # Get user from session
+        user_data = require_auth(request)
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
         import cv2
         import numpy as np
         
-        document = db.get_ghostlayer_document_by_id(document_id)
+        document = db.get_user_ghostlayer_document_by_id(document_id)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Verify the document belongs to the current user
+        if document['user_id'] != user_data['id']:
+            raise HTTPException(status_code=403, detail="Access denied - document belongs to another user")
         
         # Check if coordinates file exists
         coordinates_path = document.get('coordinates_json_path')

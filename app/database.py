@@ -37,6 +37,8 @@ class IDMSDatabase:
         self.create_error_logs_table(cursor)
         self.create_configuration_table(cursor)
         self.create_ghostlayer_documents_table(cursor)
+        self.create_ai_document_classifications_table(cursor)
+        self.create_user_ghostlayer_documents_table(cursor)
         
         conn.commit()
         conn.close()
@@ -325,6 +327,99 @@ class IDMSDatabase:
                 logger.info("coordinates_json_path column already exists")
         except Exception as e:
             logger.warning(f"Could not add coordinates_json_path column: {e}")
+
+    def create_user_ghostlayer_documents_table(self, cursor):
+        """User-specific GhostLayer documents table - stores user-uploaded GhostLayer documents"""
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_ghostlayer_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                uploaded_by TEXT NOT NULL,
+                document_name TEXT NOT NULL,
+                document_type TEXT NOT NULL,
+                document_format TEXT NOT NULL,
+                document_size INTEGER NOT NULL,
+                document_path TEXT NOT NULL,
+                coordinates_json_path TEXT,
+                upload_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                processing_status TEXT DEFAULT 'pending',
+                ai_analysis_result TEXT,
+                filenet_upload_status TEXT DEFAULT 'pending',
+                filenet_document_id TEXT,
+                error_message TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Create indexes for better performance
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_user_ghostlayer_user_id 
+            ON user_ghostlayer_documents (user_id)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_user_ghostlayer_status 
+            ON user_ghostlayer_documents (processing_status)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_user_ghostlayer_uploaded_by 
+            ON user_ghostlayer_documents (uploaded_by)
+        """)
+
+    def create_ai_document_classifications_table(self, cursor):
+        """AI Document Classifications table - stores user-specific AI document classification uploads"""
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ai_document_classifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                uploaded_by TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                original_filename TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                file_type TEXT NOT NULL,
+                mime_type TEXT,
+                document_type TEXT NOT NULL,
+                criticality_level TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                upload_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                processing_timestamp DATETIME,
+                processing_duration REAL,
+                ai_confidence_score REAL,
+                tags TEXT, -- JSON array of tags
+                summary TEXT,
+                reasoning TEXT,
+                is_archive BOOLEAN DEFAULT 0,
+                parent_archive_id INTEGER,
+                checksum TEXT,
+                processing_status TEXT DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+                filenet_upload_status TEXT DEFAULT 'pending', -- 'pending', 'success', 'failed'
+                filenet_document_id TEXT, -- FileNet document ID if uploaded
+                error_message TEXT, -- Error details if processing failed
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (parent_archive_id) REFERENCES ai_document_classifications(id)
+            )
+        """)
+        
+        # Create indexes for better performance
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_doc_user_id 
+            ON ai_document_classifications(user_id)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_doc_status 
+            ON ai_document_classifications(processing_status)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_doc_upload_time 
+            ON ai_document_classifications(upload_timestamp)
+        """)
 
     # Document Operations
     def insert_document(self, document_data: Dict) -> int:
@@ -663,6 +758,268 @@ class IDMSDatabase:
         
         logger.info(f"GhostLayer document inserted with ID: {document_id}")
         return document_id
+    
+    def insert_ai_document_classification(self, document_data: Dict) -> int:
+        """Insert a new AI Document Classification record"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO ai_document_classifications (
+                user_id, uploaded_by, filename, original_filename, file_size, file_type,
+                mime_type, document_type, criticality_level, file_path, processing_timestamp,
+                processing_duration, ai_confidence_score, tags, summary, reasoning,
+                is_archive, parent_archive_id, checksum, processing_status, filenet_upload_status,
+                filenet_document_id, error_message
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            document_data['user_id'],
+            document_data['uploaded_by'],
+            document_data['filename'],
+            document_data['original_filename'],
+            document_data['file_size'],
+            document_data['file_type'],
+            document_data.get('mime_type'),
+            document_data['document_type'],
+            document_data['criticality_level'],
+            document_data['file_path'],
+            document_data.get('processing_timestamp'),
+            document_data.get('processing_duration'),
+            document_data.get('ai_confidence_score'),
+            json.dumps(document_data.get('tags', [])),
+            document_data.get('summary'),
+            document_data.get('reasoning'),
+            document_data.get('is_archive', 0),
+            document_data.get('parent_archive_id'),
+            document_data.get('checksum'),
+            document_data.get('processing_status', 'pending'),
+            document_data.get('filenet_upload_status', 'pending'),
+            document_data.get('filenet_document_id'),
+            document_data.get('error_message')
+        ))
+        
+        document_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"AI Document Classification inserted with ID: {document_id} for user: {document_data['user_id']}")
+        return document_id
+    
+    def get_ai_document_classifications(self, user_id: int = None, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Get AI Document Classifications with optional user filtering"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if user_id:
+            cursor.execute("""
+                SELECT * FROM ai_document_classifications 
+                WHERE user_id = ?
+                ORDER BY created_at DESC 
+                LIMIT ? OFFSET ?
+            """, (user_id, limit, offset))
+        else:
+            cursor.execute("""
+                SELECT * FROM ai_document_classifications 
+                ORDER BY created_at DESC 
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
+        
+        documents = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return documents
+    
+    def get_ai_document_classification_by_id(self, document_id: int) -> Optional[Dict]:
+        """Get a specific AI Document Classification by ID"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM ai_document_classifications WHERE id = ?
+        """, (document_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        return dict(row) if row else None
+    
+    def update_ai_document_classification(self, document_id: int, update_data: Dict) -> bool:
+        """Update an AI Document Classification record"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Build dynamic update query
+        set_clauses = []
+        values = []
+        
+        for key, value in update_data.items():
+            if key in ['tags'] and isinstance(value, list):
+                set_clauses.append(f"{key} = ?")
+                values.append(json.dumps(value))
+            else:
+                set_clauses.append(f"{key} = ?")
+                values.append(value)
+        
+        if not set_clauses:
+            conn.close()
+            return False
+        
+        set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+        values.append(document_id)
+        
+        query = f"""
+            UPDATE ai_document_classifications 
+            SET {', '.join(set_clauses)}
+            WHERE id = ?
+        """
+        
+        try:
+            cursor.execute(query, values)
+            conn.commit()
+            success = cursor.rowcount > 0
+            conn.close()
+            return success
+        except Exception as e:
+            logger.error(f"Error updating AI document classification {document_id}: {e}")
+            conn.close()
+            return False
+    
+    # User GhostLayer Documents Operations
+    def insert_user_ghostlayer_document(self, document_data: Dict) -> int:
+        """Insert a new user GhostLayer document record"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO user_ghostlayer_documents (
+                user_id, uploaded_by, document_name, document_type, document_format,
+                document_size, document_path, coordinates_json_path, processing_status,
+                ai_analysis_result, filenet_upload_status, filenet_document_id, error_message
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            document_data['user_id'],
+            document_data['uploaded_by'],
+            document_data['document_name'],
+            document_data['document_type'],
+            document_data['document_format'],
+            document_data['document_size'],
+            document_data['document_path'],
+            document_data.get('coordinates_json_path'),
+            document_data.get('processing_status', 'pending'),
+            json.dumps(document_data.get('ai_analysis_result', {})),
+            document_data.get('filenet_upload_status', 'pending'),
+            document_data.get('filenet_document_id'),
+            document_data.get('error_message')
+        ))
+        
+        document_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"User GhostLayer document inserted with ID: {document_id}")
+        return document_id
+    
+    def get_user_ghostlayer_documents(self, user_id: int = None, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """Get user GhostLayer documents with optional user filtering and pagination"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if user_id:
+            cursor.execute("""
+                SELECT * FROM user_ghostlayer_documents 
+                WHERE user_id = ?
+                ORDER BY created_at DESC 
+                LIMIT ? OFFSET ?
+            """, (user_id, limit, offset))
+        else:
+            cursor.execute("""
+                SELECT * FROM user_ghostlayer_documents 
+                ORDER BY created_at DESC 
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
+        
+        documents = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return documents
+    
+    def get_user_ghostlayer_document_by_id(self, document_id: int) -> Optional[Dict]:
+        """Get a specific user GhostLayer document by ID"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM user_ghostlayer_documents WHERE id = ?", (document_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        return dict(row) if row else None
+    
+    def update_user_ghostlayer_document(self, document_id: int, update_data: Dict) -> bool:
+        """Update user GhostLayer document record"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            # Build dynamic update query
+            set_clauses = []
+            values = []
+            
+            for key, value in update_data.items():
+                if key in ['document_type', 'coordinates_json_path', 'processing_status', 'ai_analysis_result', 'filenet_upload_status', 
+                          'filenet_document_id', 'error_message']:
+                    set_clauses.append(f"{key} = ?")
+                    if key == 'ai_analysis_result' and isinstance(value, dict):
+                        values.append(json.dumps(value))
+                    else:
+                        values.append(value)
+            
+            if not set_clauses:
+                conn.close()
+                return False
+            
+            set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+            values.append(document_id)
+            
+            query = f"UPDATE user_ghostlayer_documents SET {', '.join(set_clauses)} WHERE id = ?"
+            cursor.execute(query, values)
+            
+            conn.commit()
+            conn.close()
+            
+            if cursor.rowcount > 0:
+                logger.info(f"User GhostLayer document {document_id} updated successfully")
+                return True
+            else:
+                logger.warning(f"User GhostLayer document {document_id} not found for update")
+                return False
+        except Exception as e:
+            logger.error(f"Error updating user GhostLayer document {document_id}: {e}")
+            conn.close()
+            return False
+    
+    def delete_user_ghostlayer_document(self, document_id: int) -> bool:
+        """Delete user GhostLayer document record"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("DELETE FROM user_ghostlayer_documents WHERE id = ?", (document_id,))
+            conn.commit()
+            
+            if cursor.rowcount > 0:
+                logger.info(f"User GhostLayer document {document_id} deleted successfully")
+                return True
+            else:
+                logger.warning(f"User GhostLayer document {document_id} not found for deletion")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting user GhostLayer document {document_id}: {e}")
+            conn.close()
+            return False
+        finally:
+            conn.close()
     
     def get_ghostlayer_documents(self, limit: int = 100, offset: int = 0) -> List[Dict]:
         """Get GhostLayer documents with pagination"""

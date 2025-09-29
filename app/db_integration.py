@@ -103,6 +103,85 @@ class IDMSDataManager:
         
         return document_id
     
+    def save_ai_document_processing(self, file_path: str, processing_result: Dict, 
+                                  processing_start_time: datetime, processing_end_time: datetime, 
+                                  user_data: Dict) -> int:
+        """Save AI document processing information to ai_document_classifications table"""
+        
+        # Calculate file information
+        file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+        filename = os.path.basename(file_path)
+        file_ext = os.path.splitext(filename)[1].lower()
+        
+        # Determine file type and MIME type
+        mime_type_map = {
+            '.pdf': 'application/pdf',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.doc': 'application/msword',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            '.xls': 'application/vnd.ms-excel',
+            '.csv': 'text/csv',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.zip': 'application/zip',
+            '.7z': 'application/x-7z-compressed',
+            '.json': 'application/json',
+            '.yaml': 'application/x-yaml',
+            '.yml': 'application/x-yaml'
+        }
+        
+        mime_type = mime_type_map.get(file_ext, 'application/octet-stream')
+        
+        # Calculate processing duration
+        processing_duration = (processing_end_time - processing_start_time).total_seconds()
+        
+        # Prepare document data for ai_document_classifications table
+        document_data = {
+            'user_id': user_data['id'],
+            'uploaded_by': user_data['username'],
+            'filename': filename,
+            'original_filename': filename,
+            'file_size': file_size,
+            'file_type': file_ext,
+            'mime_type': mime_type,
+            'document_type': processing_result.get('document_type', 'Unknown'),
+            'criticality_level': processing_result.get('criticality', 'Unknown'),
+            'file_path': file_path,
+            'processing_timestamp': processing_start_time.isoformat(),
+            'processing_duration': processing_duration,
+            'ai_confidence_score': processing_result.get('confidence_score'),
+            'tags': processing_result.get('Tags', '').split(', ') if processing_result.get('Tags') else [],
+            'summary': processing_result.get('summary', ''),
+            'reasoning': processing_result.get('reasoning', ''),
+            'processing_status': 'completed' if processing_result.get('document_type') else 'failed',
+            'ai_analysis_result': processing_result,
+            'filenet_upload_status': 'success' if processing_result.get('filenet_upload') == 'Success' else 'pending',
+            'filenet_document_id': processing_result.get('filenet_document_id', ''),
+            'error_message': processing_result.get('error_message', '')
+        }
+        
+        # Insert document record into ai_document_classifications table
+        document_id = self.db.insert_ai_document_classification(document_data)
+        
+        # Log processing steps
+        self.log_processing_step(document_id, 'file_upload', 'completed', 
+                               processing_start_time, processing_start_time, 0)
+        
+        self.log_processing_step(document_id, 'ai_classification', 
+                               'completed' if processing_result.get('document_type') else 'failed',
+                               processing_start_time, processing_end_time, processing_duration,
+                               {'document_type': processing_result.get('document_type'),
+                                'confidence': processing_result.get('confidence_score')})
+        
+        # Log FileNet upload if attempted
+        if 'filenet_upload' in processing_result:
+            filenet_status = 'success' if processing_result['filenet_upload'] == 'Success' else 'failed'
+            self.log_filenet_upload(document_id, 'classification', filenet_status,
+                                  processing_result.get('filenet_upload'))
+        
+        return document_id
+    
     def log_processing_step(self, document_id: int, step: str, status: str,
                           start_time: datetime, end_time: datetime, duration: float,
                           details: Dict = None, error_message: str = None):
